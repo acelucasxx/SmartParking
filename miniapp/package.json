@@ -1,0 +1,12 @@
+{
+  "name": "smartparking-miniapp",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "miniprogram-api-typings": "^4.0.2",
+    "typescript": "~5.7.2"
+  }
+}

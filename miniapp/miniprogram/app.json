@@ -1,0 +1,22 @@
+{
+  "pages": ["pages/index/index", "pages/message/message", "pages/mine/mine"],
+  "window": {
+    "navigationBarTitleText": "智能车位",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f5f6f7"
+  },
+  "tabBar": {
+    "color": "#7a7e83",
+    "selectedColor": "#1677ff",
+    "backgroundColor": "#ffffff",
+    "list": [
+      { "pagePath": "pages/index/index", "text": "车位" },
+      { "pagePath": "pages/message/message", "text": "消息" },
+      { "pagePath": "pages/mine/mine", "text": "我的" }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}
