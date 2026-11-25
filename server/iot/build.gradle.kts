@@ -9,6 +9,8 @@ dependencies {
     implementation("org.eclipse.paho:org.eclipse.paho.mqttv5.client:1.2.5")
     // 运行态（device_runtime）归 iot 所有
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
+    // 运行态热数据
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
 }
 
 // CodeTableContractTest 读取接口契约，校验码表枚举名与 docs/api 一致

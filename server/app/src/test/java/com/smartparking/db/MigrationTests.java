@@ -15,7 +15,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 /** 校验 Flyway 迁移在 MySQL 8.4 上完整执行，且关键约束按 PRD 生效。 */
-@SpringBootTest(properties = "smartparking.mqtt.enabled=false")
+@SpringBootTest(
+        properties = {
+            "smartparking.mqtt.enabled=false",
+            // 断言的是迁移脚本建出的初始分区，不让启动时的分区维护介入
+            "smartparking.device-event.partitions.enabled=false"
+        })
 @Import(TestcontainersConfiguration.class)
 @Transactional
 class MigrationTests {
@@ -51,7 +56,17 @@ class MigrationTests {
         var applied = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1 AND version IS NOT NULL", Integer.class);
         assertThat(failed).isZero();
-        assertThat(applied).isEqualTo(6);
+        assertThat(applied).isEqualTo(migrationScripts());
+    }
+
+    private static int migrationScripts() {
+        try {
+            return new org.springframework.core.io.support.PathMatchingResourcePatternResolver()
+                    .getResources("classpath:db/migration/V*__*.sql")
+                    .length;
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Test

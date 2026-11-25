@@ -1,8 +1,8 @@
 package com.smartparking.iot.presence;
 
+import com.smartparking.iot.DbTime;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,9 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 class JdbcConnectionStateStore implements ConnectionStateStore {
 
-    /** 库内时间统一东八区（docs/db/conventions.md） */
-    private static final ZoneId DB_ZONE = ZoneId.of("Asia/Shanghai");
-
     private final JdbcClient jdbc;
 
     JdbcConnectionStateStore(JdbcClient jdbc) {
@@ -26,14 +23,14 @@ class JdbcConnectionStateStore implements ConnectionStateStore {
     @Override
     @Transactional
     public boolean record(long deviceId, ConnectionState state, Instant at) {
-        LocalDateTime time = LocalDateTime.ofInstant(at, DB_ZONE);
+        LocalDateTime time = DbTime.toDb(at);
         jdbc.sql("INSERT INTO device_runtime (device_id) VALUES (?) ON DUPLICATE KEY UPDATE device_id = device_id")
                 .param(deviceId)
                 .update();
         String seen =
                 state == ConnectionState.CONNECTED ? ", last_seen_at = GREATEST(COALESCE(last_seen_at, :at), :at)" : "";
-        int updated = jdbc.sql("UPDATE device_runtime SET last_conn_event = :state, last_conn_at = :at" + seen
-                        + " WHERE device_id = :id AND (last_conn_at IS NULL OR last_conn_at < :at)")
+        int updated = jdbc.sql("UPDATE device_runtime SET last_conn_event = :state, last_conn_at = :at, rev = rev + 1"
+                        + seen + " WHERE device_id = :id AND (last_conn_at IS NULL OR last_conn_at < :at)")
                 .param("state", state.name())
                 .param("at", time)
                 .param("id", deviceId)
