@@ -3,14 +3,14 @@ package com.smartparking.iot.mqtt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.smartparking.iot.Devices;
 import com.smartparking.iot.codec.Rs485Codec;
 import java.time.Duration;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class MqttGatewayTest {
 
-    private final UplinkDispatcher dispatcher = new UplinkDispatcher(imei -> Optional.empty(), event -> {});
+    private final UplinkDispatcher dispatcher = new UplinkDispatcher(Devices.none(), event -> {});
 
     @Test
     void defaultsAreApplied() {

@@ -4,13 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.smartparking.iot.DeviceDirectory;
 import com.smartparking.iot.DeviceDirectory.RegisteredDevice;
+import com.smartparking.iot.Devices;
 import com.smartparking.iot.presence.ConnectionEventService.Outcome;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class ConnectionEventServiceTest {
@@ -35,8 +35,7 @@ class ConnectionEventServiceTest {
         }
     }
 
-    private final DeviceDirectory directory =
-            imei -> IMEI.equals(imei) ? Optional.of(new RegisteredDevice(7, IMEI, 1)) : Optional.empty();
+    private final DeviceDirectory directory = Devices.only(new RegisteredDevice(7, IMEI, 1));
     private final MemoryStore store = new MemoryStore();
     private final List<Object> published = new ArrayList<>();
     private final ConnectionEventService service = new ConnectionEventService(directory, store, published::add);

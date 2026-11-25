@@ -26,4 +26,12 @@ class JdbcDeviceDirectory implements DeviceDirectory {
                 .query((rs, n) -> new RegisteredDevice(rs.getLong("id"), rs.getString("imei"), rs.getInt("rs485_addr")))
                 .optional();
     }
+
+    @Override
+    public Optional<RegisteredDevice> findById(long deviceId) {
+        return jdbc.sql("SELECT id, imei, rs485_addr FROM device WHERE id = ?")
+                .param(deviceId)
+                .query((rs, n) -> new RegisteredDevice(rs.getLong("id"), rs.getString("imei"), rs.getInt("rs485_addr")))
+                .optional();
+    }
 }

@@ -88,6 +88,12 @@ class MqttAccessIntegrationTest {
     @Autowired
     private Listener listener;
 
+    @Autowired
+    private com.smartparking.iot.command.CommandService commands;
+
+    @Autowired
+    private com.smartparking.iot.runtime.DeviceRuntimeService runtime;
+
     private ExecutorScheduler scheduler;
 
     @BeforeEach
@@ -153,6 +159,36 @@ class MqttAccessIntegrationTest {
 
             gateway.send(REGISTERED, Rs485Codec.encodeOpen());
             assertThat(nextUplink(REGISTERED)).as("回显帧照常上报").isInstanceOf(UplinkFrame.Echo.class);
+        }
+    }
+
+    @Test
+    void remoteOpenSucceedsThroughEmqx() throws Exception {
+        // 完整链路：CommandService → MqttGateway → EMQX → 模拟器 → EMQX → UplinkDispatcher → 运行态 / 状态机
+        try (var device = device(REGISTERED, true)) {
+            device.connect();
+            long deviceId = jdbc.sql("SELECT id FROM device WHERE imei = ?")
+                    .param(REGISTERED)
+                    .query(Long.class)
+                    .single();
+            device.board().repair();
+            gateway.send(REGISTERED, Rs485Codec.encodeQuery());
+            await().atMost(Duration.ofSeconds(10)).until(() -> runtime.find(deviceId)
+                    .map(r -> r.statusRefreshedAt() != null
+                            && r.lastConnEvent() == ConnectionState.CONNECTED
+                            && r.gateStatus() == GateStatus.CLOSED)
+                    .orElse(false));
+
+            var started = commands.submit(
+                    deviceId,
+                    com.smartparking.iot.command.CommandAction.OPEN,
+                    java.util.UUID.randomUUID().toString(),
+                    com.smartparking.iot.command.Initiator.user(1, "OWNER"));
+            await().atMost(Duration.ofSeconds(10))
+                    .until(() -> commands.get(deviceId, started.id()).status().isTerminal());
+            var done = commands.get(deviceId, started.id());
+            assertThat(done.status()).isEqualTo(com.smartparking.iot.command.CommandStatus.SUCCESS);
+            assertThat(device.board().status()).isEqualTo(GateStatus.OPENED);
         }
     }
 

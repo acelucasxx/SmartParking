@@ -5,9 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.smartparking.iot.DeviceDirectory;
 import com.smartparking.iot.DeviceDirectory.RegisteredDevice;
+import com.smartparking.iot.Devices;
 import com.smartparking.iot.auth.EmqxAuthController.AuthRequest;
 import com.smartparking.iot.mqtt.MqttProperties;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 
@@ -18,8 +18,7 @@ class EmqxAuthControllerTest {
     private static final String UNKNOWN = "860000000000017";
 
     private final DeviceCredentials credentials = new DeviceCredentials(KEY);
-    private final DeviceDirectory directory =
-            imei -> IMEI.equals(imei) ? Optional.of(new RegisteredDevice(1, IMEI, 1)) : Optional.empty();
+    private final DeviceDirectory directory = Devices.only(new RegisteredDevice(1, IMEI, 1));
     private final MqttProperties mqtt =
             new MqttProperties(true, "tcp://x", null, "smartparking-server", "cloud-pass", null, null, null);
     private final EmqxAuthController controller = new EmqxAuthController(
