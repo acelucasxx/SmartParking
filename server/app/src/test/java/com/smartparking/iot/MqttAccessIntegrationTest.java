@@ -14,6 +14,8 @@ import com.smartparking.iot.codec.Rs485Codec;
 import com.smartparking.iot.codec.UplinkFrame;
 import com.smartparking.iot.mqtt.DeviceUplinkEvent;
 import com.smartparking.iot.mqtt.MqttGateway;
+import com.smartparking.iot.presence.ConnectionState;
+import com.smartparking.iot.presence.DeviceConnectionEvent;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.file.Files;
@@ -47,7 +49,8 @@ import org.testcontainers.images.builder.Transferable;
 /**
  * MQTT 接入端到端：EMQX 加载 deploy/local/emqx 的真实配置，认证回调本服务，设备由 DTU 模拟器冒充。
  *
- * <p>覆盖：一机一密认证、未登记 IMEI 拒连、主题 ACL、上行解码发布事件、下行消息过期（离线不排队）。
+ * <p>覆盖：一机一密认证、未登记 IMEI 拒连、主题 ACL、上行解码发布事件、下行消息过期（离线不排队）、
+ * 连接 / 断开事件经规则引擎写入 device_runtime（IOT-05）。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
 @Import({TestcontainersConfiguration.class, MqttAccessIntegrationTest.Listener.class})
@@ -211,10 +214,95 @@ class MqttAccessIntegrationTest {
         }
     }
 
+    /** device_runtime 中的连接状态 */
+    private record Conn(String event, java.time.LocalDateTime at, java.time.LocalDateTime seen) {}
+
+    private Conn conn(String imei) {
+        return jdbc.sql(
+                        """
+                        SELECT r.last_conn_event, r.last_conn_at, r.last_seen_at
+                        FROM device_runtime r JOIN device d ON d.id = r.device_id WHERE d.imei = ?""")
+                .param(imei)
+                .query((rs, n) -> new Conn(
+                        rs.getString(1),
+                        rs.getObject(2, java.time.LocalDateTime.class),
+                        rs.getObject(3, java.time.LocalDateTime.class)))
+                .optional()
+                .orElse(new Conn(null, null, null));
+    }
+
+    private MqttClient rawDevice(String imei) throws MqttException {
+        var client = new MqttClient(broker(), "dtu-" + imei, new MemoryPersistence());
+        var options = new MqttConnectOptions();
+        // 与 DTU 常见配置一致：持久会话，旧连接被接管时 EMQX 报 takenover
+        options.setCleanSession(false);
+        options.setUserName(imei);
+        options.setPassword(new DeviceCredentials(KEY).passwordFor(imei).toCharArray());
+        client.connect(options);
+        return client;
+    }
+
+    @Test
+    void connectAndDisconnectAreRecordedInRuntime() throws Exception {
+        try (var device = device(REGISTERED, true)) {
+            device.connect();
+            await().atMost(Duration.ofSeconds(20))
+                    .until(() -> "CONNECTED".equals(conn(REGISTERED).event()));
+            Conn up = conn(REGISTERED);
+            assertThat(up.seen()).as("连接事件刷新 last_seen_at").isNotNull().isEqualTo(up.at());
+            assertThat(listener.connections)
+                    .anyMatch(e -> e.imei().equals(REGISTERED) && e.state() == ConnectionState.CONNECTED);
+
+            device.dropFor(3);
+            await().atMost(Duration.ofSeconds(20))
+                    .until(() -> "DISCONNECTED".equals(conn(REGISTERED).event()));
+            Conn down = conn(REGISTERED);
+            assertThat(down.at()).isAfter(up.at());
+            assertThat(down.seen()).as("断开事件不刷新 last_seen_at").isEqualTo(up.seen());
+
+            await().atMost(Duration.ofSeconds(20))
+                    .until(() -> "CONNECTED".equals(conn(REGISTERED).event()));
+            assertThat(conn(REGISTERED).at()).isAfter(down.at());
+        }
+    }
+
+    @Test
+    void takeoverByNewConnectionKeepsDeviceConnected() throws Exception {
+        // 同一 IMEI 重连时旧连接被接管，旧连接的断开不能把设备记为断开。
+        // EMQX 5.8 实测：该断开事件的时间戳早于新连接事件，按时间戳即被忽略；takenover / discarded 过滤是兜底
+        MqttClient first = rawDevice(REGISTERED_2);
+        MqttClient second = null;
+        try {
+            await().atMost(Duration.ofSeconds(20))
+                    .until(() -> "CONNECTED".equals(conn(REGISTERED_2).event()));
+            var before = conn(REGISTERED_2).at();
+            second = rawDevice(REGISTERED_2);
+            await().atMost(Duration.ofSeconds(20))
+                    .until(() -> conn(REGISTERED_2).at().isAfter(before));
+            Thread.sleep(2_000);
+            assertThat(conn(REGISTERED_2).event()).isEqualTo("CONNECTED");
+        } finally {
+            for (MqttClient c : new MqttClient[] {first, second}) {
+                if (c != null) {
+                    if (c.isConnected()) {
+                        c.disconnectForcibly(0, 1000, false);
+                    }
+                    c.close();
+                }
+            }
+        }
+    }
+
     @TestConfiguration(proxyBeanMethods = false)
     static class Listener {
 
         final BlockingQueue<DeviceUplinkEvent> events = new LinkedBlockingQueue<>();
+        final BlockingQueue<DeviceConnectionEvent> connections = new LinkedBlockingQueue<>();
+
+        @EventListener
+        void on(DeviceConnectionEvent event) {
+            connections.add(event);
+        }
 
         @EventListener
         void on(DeviceUplinkEvent event) {

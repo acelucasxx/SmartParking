@@ -1,6 +1,6 @@
 # 设备接入：MQTT 与一机一密
 
-对应 PRD 8.1，实现于 IOT-04。代码在 `server/iot` 的 `mqtt`、`auth` 包，EMQX 配置在 `deploy/local/emqx`。
+对应 PRD 8.1，实现于 IOT-04；连接事件见 IOT-05。代码在 `server/iot` 的 `mqtt`、`auth` 包，EMQX 配置在 `deploy/local/emqx`。
 
 ## 链路
 
@@ -42,6 +42,21 @@ EMQX 每次连接调用 `POST /internal/emqx/authn`，请求头带 `X-Emqx-Token
 服务端还有第二道检查：`UplinkDispatcher` 对每条上行再查一次 IMEI，未登记的丢弃并按 IMEI 每 10 分钟告警一次；主题或帧结构不合法也只记日志、不抛异常。合法帧解码后发布 `DeviceUplinkEvent`，回显帧、版本帧同样发布，供在线判定刷新 `last_seen_at`。
 
 被禁用的设备（`enabled = 0`）仍可连接和上报：禁用只阻止控制（PRD 5.8）。
+
+## 连接 / 断开事件
+
+EMQX 规则 `device_conn_events` 筛出客户端 ID 为 `dtu-{15 位数字}` 的 `client.connected` / `client.disconnected` 事件，经 HTTP 动作推送到 `POST /internal/emqx/events`（同样校验 `X-Emqx-Token`）。业务服务写入 `device_runtime`：
+
+| 事件 | `last_conn_event` | `last_conn_at` | `last_seen_at` |
+| --- | --- | --- | --- |
+| 连接 | `CONNECTED` | 事件时刻 | 刷新（取较新值） |
+| 断开 | `DISCONNECTED` | 事件时刻 | 不变（PRD 8.5） |
+
+- **乱序与重试**：HTTP 动作可能并发、乱序或重试，只有时刻晚于已记录 `last_conn_at` 的事件生效，重复投递不会重复发布事件。
+- **接管**：同一 IMEI 重新连接时旧连接被接管。EMQX 5.8 实测旧连接的断开事件时间戳早于新连接，按时刻即被忽略；断开原因为 `takenover` / `discarded` 时也直接忽略，作为兜底。
+- **只认已登记设备**：未登记 IMEI 的事件只记日志。
+- 生效的事件发布 `DeviceConnectionEvent`，供在线判定（IOT-09）与上线后立即查询（IOT-10，PRD 8.7）使用。在线状态 `online_state` 由 IOT-09 统一判定，这里不改。
+- 业务服务晚于 EMQX 启动时，EMQX 每 5 秒检查一次连接器，期间的事件在缓冲区等待（最长 45 秒）后补发；更久的中断会丢事件，由在线判定的 60 秒扫描按 `last_seen_at` 兜底。
 
 ## 离线不排队
 
