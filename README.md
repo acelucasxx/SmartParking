@@ -11,6 +11,7 @@
 - 数据库约定：[docs/db/conventions.md](docs/db/conventions.md)
 - 接口契约与错误码：[docs/api/README.md](docs/api/README.md)
 - 设备接入与一机一密：[docs/iot/device-access.md](docs/iot/device-access.md)
+- 设备运行态与状态流水：[docs/iot/runtime.md](docs/iot/runtime.md)
 - DTU 模拟器：[tools/dtu-sim/README.md](tools/dtu-sim/README.md)
 - WorkBuddy 代码复用评估：[docs/plan/workbuddy-reuse.md](docs/plan/workbuddy-reuse.md)
 - 协作约定：[CONTRIBUTING.md](CONTRIBUTING.md)

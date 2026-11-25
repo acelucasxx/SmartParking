@@ -17,6 +17,7 @@
 | V4__message_and_alarm | `app_message`、`alarm` |
 | V5__admin | `role`、`admin_user`、`operation_log`、`system_config`、`import_task` |
 | V6__seed | 三个后台角色、系统设置默认参数；**不预置后台账号** |
+| V7__runtime_revision | `device_runtime.rev` 修订号，Redis 热数据据此判断新旧（IOT-06） |
 
 ## 字段
 
@@ -59,7 +60,7 @@ MySQL 不支持部分索引，以下规则用“生成列 + 唯一索引”实�
 
 - `PARTITION BY RANGE (TO_DAYS(at))`，一月一个分区，主键为 `(id, at)`。
 - 初始分区 `p202611` 至 `p202712`，`p_future` 兜底。
-- **待办**：定时任务每月从 `p_future` 拆出下一个月的分区（`REORGANIZE PARTITION`），并删除超过保留期（≥ 180 天）的分区（`DROP PARTITION`）。该任务随 IOT-06 实现，上线前必须就位，否则数据会全部落入 `p_future`。
+- 分区由 `EventPartitionMaintainer` 自动维护（IOT-06）：启动时与每天 03:10 从 `p_future` 拆出未来 3 个月的分区，并删除整月超过 186 天的分区，见 [docs/iot/runtime.md](../iot/runtime.md#device_event-分区维护)。
 
 ## 业务上的取舍（需产品确认）
 

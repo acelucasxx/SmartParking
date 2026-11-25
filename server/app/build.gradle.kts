@@ -22,6 +22,9 @@ dependencies {
     implementation("org.flywaydb:flyway-mysql")
     runtimeOnly("com.mysql:mysql-connector-j")
 
+    // 运行态热数据（IOT-06）；health 汇总包含 Redis 检查
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+
     // 集成测试用 Testcontainers 拉起 MySQL 8.4，本机与 CI 都只需要 Docker
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:junit-jupiter")

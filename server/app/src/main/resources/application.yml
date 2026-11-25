@@ -19,6 +19,13 @@ smartparking:
     keep-alive: 30s
     reconnect-max-delay: 30s
 
+  device-event:
+    partitions:
+      # 每天 03:10 与启动时维护 device_event 月度分区（PRD 9：保留 ≥ 180 天）
+      enabled: true
+      retention-days: 186
+      months-ahead: 3
+
 server:
   port: 8080
   shutdown: graceful
