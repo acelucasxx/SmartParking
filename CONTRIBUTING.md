@@ -41,4 +41,4 @@
 
 - 业务模块只依赖 `common`，模块之间通过接口或领域事件协作，不跨模块访问对方的表。
 - `iot` 不感知用户与权限；权限判定统一在 `control` 中完成。
-- 数据库变更只通过 Flyway 迁移脚本，已合入 `main` 的脚本不得修改。
+- 数据库变更只通过 Flyway 迁移脚本，已合入 `main` 的脚本不得修改；字段与命名约定见 [docs/db/conventions.md](docs/db/conventions.md)。

@@ -8,6 +8,7 @@
 
 - 产品需求：[docs/prd/PRD.md](docs/prd/PRD.md)
 - 开发计划：[docs/plan/dev-plan.md](docs/plan/dev-plan.md)
+- 数据库约定：[docs/db/conventions.md](docs/db/conventions.md)
 - 协作约定：[CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## 工程
@@ -35,7 +36,7 @@ cd deploy/local && docker compose up -d
 cd server && ./gradlew :app:bootRun
 ```
 
-健康检查：`http://localhost:8080/actuator/health`
+健康检查：`http://localhost:8080/actuator/health`。启动时会自动执行数据库迁移，所以要先起依赖服务。`./gradlew build` 的集成测试用 Testcontainers 自带 MySQL，只需要 Docker 在运行。
 
 **admin-web**（需要 Node 20+）
 

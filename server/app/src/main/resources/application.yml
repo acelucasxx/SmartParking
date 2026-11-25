@@ -3,6 +3,11 @@ spring:
     name: smartparking-server
   profiles:
     default: local
+  flyway:
+    # 迁移脚本只增不改；校验失败直接拒绝启动
+    locations: classpath:db/migration
+    validate-migration-naming: true
+    clean-disabled: true
 
 server:
   port: 8080

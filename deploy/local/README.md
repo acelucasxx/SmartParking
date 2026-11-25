@@ -55,5 +55,5 @@ EMQX 控制台：<http://localhost:18083>。可以在“WebSocket 客户端”�
 ## 说明
 
 - **EMQX 本地不做设备认证**，任何客户端都能连 1883。一机一密认证与 TLS 在 IOT-04 / INF-06 中接入，测试与生产环境只开放 8883。
-- **表结构不在这里建**：由服务端 Flyway 迁移管理（INF-04）。
+- **表结构不在这里建**：服务启动时由 Flyway 自动迁移，脚本在 `server/app/src/main/resources/db/migration`，约定见 [docs/db/conventions.md](../../docs/db/conventions.md)。
 - 服务端连接配置在 `server/app/src/main/resources/application-local.yml`，与这里的默认值一致。
