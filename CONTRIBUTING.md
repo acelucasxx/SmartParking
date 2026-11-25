@@ -24,6 +24,19 @@
 
 通用格式见根目录 `.editorconfig`。
 
+## CI
+
+每个 PR 和 `main` 的每次推送都会运行 [CI](.github/workflows/ci.yml)，四个检查全部通过才能合入：
+
+| 检查 | 内容 |
+| --- | --- |
+| `server · build & test` | `./gradlew build`：Spotless、编译、单元测试；产出 `smartparking-server.jar` |
+| `admin-web · lint & build` | ESLint、Prettier、`vue-tsc`、`vite build`；产出 `dist` |
+| `miniapp · typecheck` | `tsc --noEmit` |
+| `deploy · compose config` | 校验本地 Compose 文件 |
+
+失败时 server 的测试报告会作为 `server-test-reports` 制品上传。
+
 ## 模块边界（server）
 
 - 业务模块只依赖 `common`，模块之间通过接口或领域事件协作，不跨模块访问对方的表。
