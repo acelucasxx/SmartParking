@@ -1,0 +1,22 @@
+{
+  "description": "智能车位道闸 网络版 小程序",
+  "miniprogramRoot": "miniprogram/",
+  "compileType": "miniprogram",
+  "appid": "touristappid",
+  "projectname": "smartparking-miniapp",
+  "setting": {
+    "useCompilerPlugins": ["typescript"],
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "urlCheck": true,
+    "ignoreDevUnusedFiles": false,
+    "ignoreUploadUnusedFiles": true
+  },
+  "srcMiniprogramRoot": "miniprogram/",
+  "libVersion": "3.7.0",
+  "packOptions": { "ignore": [], "include": [] },
+  "condition": {},
+  "editorSetting": { "tabIndent": "insertSpaces", "tabSize": 2 }
+}

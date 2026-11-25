@@ -1,0 +1,29 @@
+name: 开发任务
+description: 开发计划中的一项任务，或新增的开发工作
+title: "[XXX-00] "
+labels: []
+body:
+  - type: textarea
+    id: task
+    attributes:
+      label: 任务
+      description: 做什么、做到什么程度算完成
+    validations:
+      required: true
+  - type: input
+    id: estimate
+    attributes:
+      label: 估时
+      placeholder: 例如 2d
+  - type: input
+    id: deps
+    attributes:
+      label: 依赖
+      placeholder: 例如 IOT-07、BIZ-02
+  - type: dropdown
+    id: line
+    attributes:
+      label: 开发线
+      options: [INF 基础设施, IOT 设备接入, BIZ 业务服务, MP 小程序, ADM 管理后台, QA 测试, EXT 外部依赖]
+    validations:
+      required: true

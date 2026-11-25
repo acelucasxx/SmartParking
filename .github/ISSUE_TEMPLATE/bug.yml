@@ -1,0 +1,29 @@
+name: 缺陷
+description: 功能与 PRD 不符或运行异常
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: 所在端
+      options: [小程序, 管理后台, 业务服务, 设备接入, 硬件 / 固件]
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 包括账号角色（主人 / 被授权人 / 运维 / 客服）、设备 SN、操作时间
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果与实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 日志、截图或原始帧
