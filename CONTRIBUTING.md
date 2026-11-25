@@ -18,7 +18,7 @@
 
 | 工程 | 规范 | 命令 |
 | --- | --- | --- |
-| server | Palantir Java Format（Spotless） | `./gradlew spotlessApply`、`./gradlew check` |
+| server（含 `tools/dtu-sim`） | Palantir Java Format（Spotless） | `./gradlew spotlessApply`、`./gradlew check` |
 | admin-web | ESLint + Prettier | `npm run lint`、`npm run format` |
 | miniapp | TypeScript strict | `npm run typecheck` |
 | docs/api | OpenAPI 3.1 + Redocly | `npx @redocly/cli@1.34.5 lint`；改接口见 [docs/api/README.md](docs/api/README.md) 的变更规则 |
@@ -31,7 +31,7 @@
 
 | 检查 | 内容 |
 | --- | --- |
-| `server · build & test` | `./gradlew build`：Spotless、编译、单元测试；产出 `smartparking-server.jar` |
+| `server · build & test` | `./gradlew build`：Spotless、编译、单元测试（含 DTU 模拟器）；产出 `smartparking-server.jar` |
 | `admin-web · lint & build` | ESLint、Prettier、`vue-tsc`、`vite build`；产出 `dist` |
 | `miniapp · typecheck` | `tsc --noEmit` |
 | `deploy · compose config` | 校验本地 Compose 文件 |

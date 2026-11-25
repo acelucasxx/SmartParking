@@ -1,0 +1,13 @@
+<configuration>
+  <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} %-5level %msg%n</pattern>
+    </encoder>
+  </appender>
+  <!-- 收发帧明细在 DEBUG 级别，用环境变量 DTU_SIM_LOG=DEBUG 打开 -->
+  <logger name="com.smartparking.dtusim" level="${DTU_SIM_LOG:-INFO}"/>
+  <logger name="org.eclipse.paho" level="WARN"/>
+  <root level="WARN">
+    <appender-ref ref="console"/>
+  </root>
+</configuration>
