@@ -1,0 +1,1889 @@
+openapi: 3.1.0
+info:
+  title: 智能车位道闸 · 管理后台接口
+  version: 1.0.0
+  description: |
+    管理后台接口契约 v1。依据 PRD V1.1 第 3、5、7 章。
+
+    - 统一响应信封 `{code, message, data}`，`code = 0` 为成功；错误码表见 `docs/api/README.md`。
+    - 认证：`Authorization: Bearer <token>`，由 `/auth/login` 签发；会话超时后返回 10002。
+    - `x-roles` 列出可调用该接口的角色，服务端按角色拒绝（10003），前端据此控制菜单与按钮。
+    - 高危操作（强制解绑、重置激活码、换件、禁用、封禁）必须填原因，并写操作日志。
+    - 后台不提供替业主抬杆 / 落杆的接口；设备自检只发查询类指令。
+    - 文件下载接口直接返回文件流，失败时仍返回 JSON 错误信封。
+servers:
+  - url: http://localhost:8080/api/admin
+    description: 本地
+security:
+  - bearer: []
+tags:
+  - name: auth
+    description: 登录与账号安全
+  - name: dashboard
+    description: 仪表盘
+  - name: import
+    description: 设备入库
+  - name: device
+    description: 设备管理与运维操作
+  - name: user
+    description: C 端用户管理
+  - name: command
+    description: 指令审计
+  - name: alarm
+    description: 告警中心
+  - name: system
+    description: 账号、角色、操作日志与系统参数
+
+paths:
+  # ---------------------------------------------------------------- auth
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: adminLogin
+      summary: 账号密码登录
+      description: 连续失败达到阈值后锁定，40002 的 message 带剩余锁定时间。
+      security: []
+      x-roles: []
+      x-error-codes: [10001, 40001, 40002, 40003]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  example: ops01
+                password:
+                  type: string
+                  format: password
+                  example: '********'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/AdminLoginResult'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: adminLogout
+      summary: 退出登录
+      x-roles: [SUPER_ADMIN, OPS, SUPPORT]
+      responses:
+        '200':
+          $ref: './common.yaml#/components/responses/Ok'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /auth/me:
+    get:
+      tags: [auth]
+      operationId: adminMe
+      summary: 当前账号
+      x-roles: [SUPER_ADMIN, OPS, SUPPORT]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/AdminProfile'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /auth/password:
+    put:
+      tags: [auth]
+      operationId: changePassword
+      summary: 修改密码
+      description: 用临时密码登录后必须先修改密码（`mustChangePassword = true`）。
+      x-roles: [SUPER_ADMIN, OPS, SUPPORT]
+      x-error-codes: [10001, 40001]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [oldPassword, newPassword]
+              properties:
+                oldPassword:
+                  type: string
+                  format: password
+                newPassword:
+                  type: string
+                  format: password
+                  minLength: 10
+                  maxLength: 64
+                  description: 至少 10 位，含字母与数字
+      responses:
+        '200':
+          $ref: './common.yaml#/components/responses/Ok'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  # ---------------------------------------------------------------- dashboard
+  /dashboard:
+    get:
+      tags: [dashboard]
+      operationId: getDashboard
+      summary: 仪表盘
+      x-roles: [SUPER_ADMIN, OPS, SUPPORT]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Dashboard'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  # ---------------------------------------------------------------- import
+  /devices:
+    get:
+      tags: [device]
+      operationId: listAdminDevices
+      summary: 设备列表
+      x-roles: [SUPER_ADMIN, OPS, SUPPORT]
+      x-error-codes: [10001]
+      parameters:
+        - name: sn
+          in: query
+          schema:
+            type: string
+        - name: imei
+          in: query
+          schema:
+            type: string
+        - name: phone
+          in: query
+          description: 主人手机号，完整 11 位精确匹配
+          schema:
+            type: string
+            pattern: '^1\d{10}$'
+        - name: bindStatus
+          in: query
+          schema:
+            $ref: './common.yaml#/components/schemas/BindStatus'
+        - name: onlineState
+          in: query
+          schema:
+            $ref: './common.yaml#/components/schemas/OnlineState'
+        - name: enabled
+          in: query
+          schema:
+            type: boolean
+        - $ref: './common.yaml#/components/parameters/Page'
+        - $ref: './common.yaml#/components/parameters/Size'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        allOf:
+                          - $ref: './common.yaml#/components/schemas/PageMeta'
+                          - type: object
+                            required: [items]
+                            properties:
+                              items:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/AdminDevice'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+    post:
+      tags: [import]
+      operationId: createDevice
+      summary: 单台录入
+      description: 校验 SN 格式与唯一、IMEI 15 位 + Luhn + 唯一、MAC 唯一。返回的激活码只出现这一次。
+      x-roles: [SUPER_ADMIN, OPS]
+      x-error-codes: [10001, 40010, 40011, 40012, 40013]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        type: object
+                        required: [device, activateCode]
+                        properties:
+                          device:
+                            $ref: '#/components/schemas/AdminDevice'
+                          activateCode:
+                            type: string
+                            description: 明文激活码，只在本次响应中出现
+                            example: K7Q2M9XA
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /device-imports/template:
+    get:
+      tags: [import]
+      operationId: downloadImportTemplate
+      summary: 下载导入模板
+      x-roles: [SUPER_ADMIN, OPS]
+      responses:
+        '200':
+          $ref: '#/components/responses/XlsxFile'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /device-imports:
+    get:
+      tags: [import]
+      operationId: listImports
+      summary: 导入记录
+      x-roles: [SUPER_ADMIN, OPS]
+      parameters:
+        - $ref: './common.yaml#/components/parameters/Page'
+        - $ref: './common.yaml#/components/parameters/Size'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        allOf:
+                          - $ref: './common.yaml#/components/schemas/PageMeta'
+                          - type: object
+                            required: [items]
+                            properties:
+                              items:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/ImportTask'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+    post:
+      tags: [import]
+      operationId: createImport
+      summary: 批量导入
+      description: 上传 Excel / CSV，列固定为 SN、IMEI、蓝牙 MAC、型号、批次。异步处理，前端轮询任务详情。
+      x-roles: [SUPER_ADMIN, OPS]
+      x-error-codes: [10001, 40014]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: .xlsx 或 .csv，不超过 5 MB
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/ImportTask'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /device-imports/{taskId}:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      tags: [import]
+      operationId: getImport
+      summary: 导入任务详情
+      x-roles: [SUPER_ADMIN, OPS]
+      x-error-codes: [10004]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/ImportTaskDetail'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /device-imports/{taskId}/failed-rows:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      tags: [import]
+      operationId: downloadFailedRows
+      summary: 导出失败行
+      description: 原始列加“失败原因”列，修正后可直接重新导入。
+      x-roles: [SUPER_ADMIN, OPS]
+      x-error-codes: [10004]
+      responses:
+        '200':
+          $ref: '#/components/responses/XlsxFile'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /device-imports/{taskId}/print-file:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      tags: [import]
+      operationId: downloadPrintFile
+      summary: 导出印刷文件
+      description: SN + 二维码 + 激活码明文。**每个任务只能导出一次**，之后返回 40015；激活码遗失只能逐台重置。
+      x-roles: [SUPER_ADMIN, OPS]
+      x-error-codes: [10004, 10009, 40015]
+      responses:
+        '200':
+          description: 印刷文件（ZIP：清单 xlsx + 二维码图片）
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  # ---------------------------------------------------------------- device
+  /devices/{deviceId}:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+    get:
+      tags: [device]
+      operationId: getAdminDevice
+      summary: 设备详情
+      description: 含实时状态、主人、被授权人及有效期。指令、告警、事件分别用各自的列表接口按 deviceId 查询。
+      x-roles: [SUPER_ADMIN, OPS, SUPPORT]
+      x-error-codes: [10004]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/AdminDeviceDetail'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /devices/{deviceId}/events:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+    get:
+      tags: [device]
+      operationId: listDeviceEvents
+      summary: 设备事件流
+      x-roles: [SUPER_ADMIN, OPS, SUPPORT]
+      x-error-codes: [10001, 10004]
+      parameters:
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: './common.yaml#/components/parameters/Page'
+        - $ref: './common.yaml#/components/parameters/Size'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        allOf:
+                          - $ref: './common.yaml#/components/schemas/PageMeta'
+                          - type: object
+                            required: [items]
+                            properties:
+                              items:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/DeviceEvent'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /devices/{deviceId}/force-unbind:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+    post:
+      tags: [device]
+      operationId: forceUnbind
+      summary: 强制解绑
+      description: |
+        用于抢绑申诉等场景。同一事务内作废待接受邀请与转让卡片、被授权人置为已撤销、写归属变更；
+        原主人与被授权人收到站内消息。`resetActivateCode = true` 时返回新激活码（只出现这一次）。
+      x-roles: [SUPER_ADMIN, OPS, SUPPORT]
+      x-error-codes: [10001, 10004, 40020, 40021]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ReasonInput'
+                - type: object
+                  properties:
+                    resetActivateCode:
+                      type: boolean
+                      default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          activateCode:
+                            type: [string, 'null']
+                            example: P4N8C2WQ
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /devices/{deviceId}/reset-activate-code:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+    post:
+      tags: [device]
+      operationId: resetActivateCode
+      summary: 重置激活码
+      description: 旧码立即失效，新码只在本次响应中出现。
+      x-roles: [SUPER_ADMIN, OPS, SUPPORT]
+      x-error-codes: [10001, 10004, 40020]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReasonInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        type: object
+                        required: [activateCode]
+                        properties:
+                          activateCode:
+                            type: string
+                            example: P4N8C2WQ
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /devices/{deviceId}/disable:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+    post:
+      tags: [device]
+      operationId: disableDevice
+      summary: 禁用设备
+      description: 绑定与授权关系保留，全部控制、邀请、转让接口拒绝。重复禁用视为成功。
+      x-roles: [SUPER_ADMIN, OPS]
+      x-error-codes: [10001, 10004, 40020]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReasonInput'
+      responses:
+        '200':
+          $ref: './common.yaml#/components/responses/Ok'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /devices/{deviceId}/enable:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+    post:
+      tags: [device]
+      operationId: enableDevice
+      summary: 启用设备
+      x-roles: [SUPER_ADMIN, OPS]
+      x-error-codes: [10001, 10004, 40020]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReasonInput'
+      responses:
+        '200':
+          $ref: './common.yaml#/components/responses/Ok'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /devices/{deviceId}/replace-part:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+    post:
+      tags: [device]
+      operationId: replacePart
+      summary: 更换 4G 模块或主板
+      description: 只改 IMEI 或蓝牙 MAC，SN 与绑定、授权关系不变；写换件记录。
+      x-roles: [SUPER_ADMIN, OPS]
+      x-error-codes: [10001, 10004, 40011, 40012, 40013, 40020]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ReasonInput'
+                - type: object
+                  required: [part, newValue]
+                  properties:
+                    part:
+                      type: string
+                      enum: [DTU, BOARD]
+                      description: DTU 换 4G 模块（新 IMEI）/ BOARD 换主板（新 MAC）
+                    newValue:
+                      type: string
+                      example: '861234567890128'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/AdminDevice'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /devices/{deviceId}/self-check:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+    post:
+      tags: [device]
+      operationId: selfCheck
+      summary: 设备自检
+      description: 只下发查询状态或查询版本，不动闸杆。结果用 `GET /commands/{commandId}` 轮询。
+      x-roles: [SUPER_ADMIN, OPS]
+      x-error-codes: [10001, 10004, 20003, 20004, 20005]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [QUERY_STATUS, QUERY_VERSION]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/CommandAudit'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  # ---------------------------------------------------------------- user
+  /users:
+    get:
+      tags: [user]
+      operationId: listUsers
+      summary: C 端用户列表
+      x-roles: [SUPER_ADMIN, SUPPORT]
+      x-error-codes: [10001]
+      parameters:
+        - name: phone
+          in: query
+          description: 完整 11 位精确匹配
+          schema:
+            type: string
+            pattern: '^1\d{10}$'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, BANNED]
+        - $ref: './common.yaml#/components/parameters/Page'
+        - $ref: './common.yaml#/components/parameters/Size'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        allOf:
+                          - $ref: './common.yaml#/components/schemas/PageMeta'
+                          - type: object
+                            required: [items]
+                            properties:
+                              items:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/AppUser'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /users/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [user]
+      operationId: getUser
+      summary: 用户详情
+      x-roles: [SUPER_ADMIN, SUPPORT]
+      x-error-codes: [10004]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/AppUserDetail'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /users/{userId}/ban:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    post:
+      tags: [user]
+      operationId: banUser
+      summary: 封禁用户
+      description: 该用户所有接口拒绝；不自动解绑，其名下设备的被授权人仍可在有效期内使用。
+      x-roles: [SUPER_ADMIN, SUPPORT]
+      x-error-codes: [10001, 10004, 40020]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReasonInput'
+      responses:
+        '200':
+          $ref: './common.yaml#/components/responses/Ok'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /users/{userId}/unban:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    post:
+      tags: [user]
+      operationId: unbanUser
+      summary: 解除封禁
+      x-roles: [SUPER_ADMIN, SUPPORT]
+      x-error-codes: [10001, 10004, 40020]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReasonInput'
+      responses:
+        '200':
+          $ref: './common.yaml#/components/responses/Ok'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  # ---------------------------------------------------------------- command
+  /commands:
+    get:
+      tags: [command]
+      operationId: listCommands
+      summary: 指令审计
+      x-roles: [SUPER_ADMIN, OPS, SUPPORT]
+      x-error-codes: [10001]
+      parameters:
+        - $ref: '#/components/parameters/DeviceIdQuery'
+        - name: sn
+          in: query
+          schema:
+            type: string
+        - name: phone
+          in: query
+          description: 操作人手机号，完整 11 位精确匹配
+          schema:
+            type: string
+            pattern: '^1\d{10}$'
+        - name: channel
+          in: query
+          schema:
+            $ref: './common.yaml#/components/schemas/Channel'
+        - name: status
+          in: query
+          schema:
+            $ref: './common.yaml#/components/schemas/CommandStatus'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: './common.yaml#/components/parameters/Page'
+        - $ref: './common.yaml#/components/parameters/Size'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        allOf:
+                          - $ref: './common.yaml#/components/schemas/PageMeta'
+                          - type: object
+                            required: [items]
+                            properties:
+                              items:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/CommandAudit'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /commands/export:
+    get:
+      tags: [command]
+      operationId: exportCommands
+      summary: 导出指令流水
+      description: 筛选条件同列表；时间跨度不超过 31 天，单次不超过 10 万行。
+      x-roles: [SUPER_ADMIN, OPS, SUPPORT]
+      x-error-codes: [10001]
+      parameters:
+        - $ref: '#/components/parameters/DeviceIdQuery'
+        - name: sn
+          in: query
+          schema:
+            type: string
+        - name: channel
+          in: query
+          schema:
+            $ref: './common.yaml#/components/schemas/Channel'
+        - name: status
+          in: query
+          schema:
+            $ref: './common.yaml#/components/schemas/CommandStatus'
+        - $ref: '#/components/parameters/FromRequired'
+        - $ref: '#/components/parameters/ToRequired'
+      responses:
+        '200':
+          $ref: '#/components/responses/XlsxFile'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /commands/{commandId}:
+    parameters:
+      - name: commandId
+        in: path
+        required: true
+        schema:
+          $ref: './common.yaml#/components/schemas/Id'
+    get:
+      tags: [command]
+      operationId: getAdminCommand
+      summary: 指令详情
+      x-roles: [SUPER_ADMIN, OPS, SUPPORT]
+      x-error-codes: [10004]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/CommandAudit'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  # ---------------------------------------------------------------- alarm
+  /alarms:
+    get:
+      tags: [alarm]
+      operationId: listAlarms
+      summary: 告警列表
+      x-roles: [SUPER_ADMIN, OPS]
+      x-error-codes: [10001]
+      parameters:
+        - $ref: '#/components/parameters/DeviceIdQuery'
+        - name: sn
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            $ref: './common.yaml#/components/schemas/AlarmType'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [OPEN, HANDLED]
+        - $ref: './common.yaml#/components/parameters/Page'
+        - $ref: './common.yaml#/components/parameters/Size'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        allOf:
+                          - $ref: './common.yaml#/components/schemas/PageMeta'
+                          - type: object
+                            required: [items]
+                            properties:
+                              items:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Alarm'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /alarms/{alarmId}/handle:
+    parameters:
+      - name: alarmId
+        in: path
+        required: true
+        schema:
+          $ref: './common.yaml#/components/schemas/Id'
+    post:
+      tags: [alarm]
+      operationId: handleAlarm
+      summary: 标记已处理
+      x-roles: [SUPER_ADMIN, OPS]
+      x-error-codes: [10001, 10004, 10009]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [note]
+              properties:
+                note:
+                  type: string
+                  minLength: 1
+                  maxLength: 512
+                  example: 已电话联系业主，现场有杂物，已清理
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Alarm'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  # ---------------------------------------------------------------- system
+  /admin-users:
+    get:
+      tags: [system]
+      operationId: listAdminUsers
+      summary: 后台账号列表
+      x-roles: [SUPER_ADMIN]
+      parameters:
+        - $ref: './common.yaml#/components/parameters/Page'
+        - $ref: './common.yaml#/components/parameters/Size'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        allOf:
+                          - $ref: './common.yaml#/components/schemas/PageMeta'
+                          - type: object
+                            required: [items]
+                            properties:
+                              items:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/AdminUser'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+    post:
+      tags: [system]
+      operationId: createAdminUser
+      summary: 新建后台账号
+      description: 服务端生成临时密码，只在本次响应中出现；首次登录必须修改。
+      x-roles: [SUPER_ADMIN]
+      x-error-codes: [10001, 40030]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, displayName, role]
+              properties:
+                username:
+                  type: string
+                  pattern: '^[a-z][a-z0-9_]{2,31}$'
+                  example: ops01
+                displayName:
+                  type: string
+                  maxLength: 32
+                  example: 运维小王
+                role:
+                  $ref: '#/components/schemas/AdminRole'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/AdminUserWithPassword'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /admin-users/{adminId}:
+    parameters:
+      - $ref: '#/components/parameters/AdminId'
+    patch:
+      tags: [system]
+      operationId: updateAdminUser
+      summary: 修改角色、名称或停用账号
+      description: 不能停用自己或修改自己的角色。
+      x-roles: [SUPER_ADMIN]
+      x-error-codes: [10001, 10003, 10004]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                displayName:
+                  type: string
+                  maxLength: 32
+                role:
+                  $ref: '#/components/schemas/AdminRole'
+                status:
+                  type: string
+                  enum: [ACTIVE, DISABLED]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/AdminUser'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /admin-users/{adminId}/reset-password:
+    parameters:
+      - $ref: '#/components/parameters/AdminId'
+    post:
+      tags: [system]
+      operationId: resetAdminPassword
+      summary: 重置密码
+      description: 同时解除锁定；新临时密码只在本次响应中出现。
+      x-roles: [SUPER_ADMIN]
+      x-error-codes: [10004]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/AdminUserWithPassword'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /roles:
+    get:
+      tags: [system]
+      operationId: listRoles
+      summary: 角色与权限点
+      x-roles: [SUPER_ADMIN]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Role'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /operation-logs:
+    get:
+      tags: [system]
+      operationId: listOperationLogs
+      summary: 后台操作日志
+      x-roles: [SUPER_ADMIN]
+      x-error-codes: [10001]
+      parameters:
+        - name: adminId
+          in: query
+          schema:
+            $ref: './common.yaml#/components/schemas/Id'
+        - name: action
+          in: query
+          schema:
+            type: string
+            example: DEVICE_FORCE_UNBIND
+        - name: targetId
+          in: query
+          description: 如设备 ID、用户 ID
+          schema:
+            type: string
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: './common.yaml#/components/parameters/Page'
+        - $ref: './common.yaml#/components/parameters/Size'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        allOf:
+                          - $ref: './common.yaml#/components/schemas/PageMeta'
+                          - type: object
+                            required: [items]
+                            properties:
+                              items:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/OperationLog'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /configs:
+    get:
+      tags: [system]
+      operationId: listConfigs
+      summary: 业务参数
+      x-roles: [SUPER_ADMIN]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SystemConfig'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /configs/{key}:
+    parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          example: member.max_per_device
+    put:
+      tags: [system]
+      operationId: updateConfig
+      summary: 修改业务参数
+      description: 按 valueType 与取值范围校验；写操作日志，修改后最长 1 分钟内全部实例生效。
+      x-roles: [SUPER_ADMIN]
+      x-error-codes: [10001, 10004]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value:
+                  type: string
+                  example: '6'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/SystemConfig'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+
+  parameters:
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema:
+        $ref: './common.yaml#/components/schemas/Id'
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        $ref: './common.yaml#/components/schemas/Id'
+    AdminId:
+      name: adminId
+      in: path
+      required: true
+      schema:
+        $ref: './common.yaml#/components/schemas/Id'
+    DeviceIdQuery:
+      name: deviceId
+      in: query
+      schema:
+        $ref: './common.yaml#/components/schemas/Id'
+    From:
+      name: from
+      in: query
+      description: 起始时间（含）
+      schema:
+        $ref: './common.yaml#/components/schemas/DateTime'
+    To:
+      name: to
+      in: query
+      description: 结束时间（不含）
+      schema:
+        $ref: './common.yaml#/components/schemas/DateTime'
+    FromRequired:
+      name: from
+      in: query
+      required: true
+      schema:
+        $ref: './common.yaml#/components/schemas/DateTime'
+    ToRequired:
+      name: to
+      in: query
+      required: true
+      schema:
+        $ref: './common.yaml#/components/schemas/DateTime'
+
+  responses:
+    XlsxFile:
+      description: Excel 文件
+      content:
+        application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+          schema:
+            type: string
+            format: binary
+
+  schemas:
+    AdminRole:
+      type: string
+      enum: [SUPER_ADMIN, OPS, SUPPORT]
+      description: 超级管理员 / 运维 / 客服
+
+    ReasonInput:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 2
+          maxLength: 255
+          description: 高危操作原因，写入操作日志
+          example: 业主持购买凭证申诉抢绑
+
+    AdminProfile:
+      type: object
+      required: [id, username, displayName, role, permissions, mustChangePassword]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Id'
+        username:
+          type: string
+          example: ops01
+        displayName:
+          type: string
+          example: 运维小王
+        role:
+          $ref: '#/components/schemas/AdminRole'
+        permissions:
+          type: array
+          description: 权限点编码，用于按钮级控制；超级管理员为 ["*"]
+          items:
+            type: string
+          example: ['device:import', 'device:disable']
+        mustChangePassword:
+          type: boolean
+          example: false
+
+    AdminLoginResult:
+      type: object
+      required: [token, expiresAt, admin]
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiJ9.mock.admin
+        expiresAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+        admin:
+          $ref: '#/components/schemas/AdminProfile'
+
+    Dashboard:
+      type: object
+      required: [devices, commandsToday, openAlarms]
+      properties:
+        devices:
+          type: object
+          required: [total, bound, online, sleep, offline, fault]
+          properties:
+            total:
+              type: integer
+              example: 1200
+            bound:
+              type: integer
+              description: 已激活
+              example: 860
+            online:
+              type: integer
+              example: 790
+            sleep:
+              type: integer
+              example: 40
+            offline:
+              type: integer
+              example: 30
+            fault:
+              type: integer
+              example: 2
+        commandsToday:
+          type: object
+          required: [total, success, successRate]
+          properties:
+            total:
+              type: integer
+              example: 3412
+            success:
+              type: integer
+              example: 3398
+            successRate:
+              type: number
+              description: 0–1
+              example: 0.9959
+        openAlarms:
+          type: integer
+          example: 5
+
+    DeviceInput:
+      type: object
+      required: [sn, imei, model, batchNo]
+      properties:
+        sn:
+          $ref: './common.yaml#/components/schemas/Sn'
+        imei:
+          type: string
+          pattern: '^\d{15}$'
+          description: 15 位，服务端另做 Luhn 校验
+          example: '861234567890128'
+        bleMac:
+          type: [string, 'null']
+          pattern: '^([0-9A-F]{2}:){5}[0-9A-F]{2}$'
+          example: 'AA:BB:CC:DD:EE:FF'
+        iccid:
+          type: [string, 'null']
+          maxLength: 20
+        model:
+          type: string
+          maxLength: 32
+          example: SPG-100
+        batchNo:
+          type: string
+          maxLength: 32
+          example: B20261201
+
+    AdminDevice:
+      type: object
+      required: [id, sn, imei, model, batchNo, bindStatus, enabled, onlineState, gateStatus, createdAt]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Id'
+        sn:
+          $ref: './common.yaml#/components/schemas/Sn'
+        imei:
+          type: string
+          example: '861234567890128'
+        bleMac:
+          type: [string, 'null']
+          example: 'AA:BB:CC:DD:EE:FF'
+        model:
+          type: string
+          example: SPG-100
+        batchNo:
+          type: string
+          example: B20261201
+        bindStatus:
+          $ref: './common.yaml#/components/schemas/BindStatus'
+        enabled:
+          type: boolean
+          example: true
+        onlineState:
+          $ref: './common.yaml#/components/schemas/OnlineState'
+        gateStatus:
+          $ref: './common.yaml#/components/schemas/GateStatus'
+        batteryPct:
+          type: [integer, 'null']
+          example: 86
+        ownerPhoneMasked:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/PhoneMasked'
+            - type: 'null'
+        lastSeenAt:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+        createdAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+
+    AdminDeviceDetail:
+      allOf:
+        - $ref: '#/components/schemas/AdminDevice'
+        - type: object
+          required: [workMode, members]
+          properties:
+            iccid:
+              type: [string, 'null']
+            fwVersion:
+              type: [string, 'null']
+              example: '1.0.3'
+            workMode:
+              type: string
+              enum: [KEEP_ALIVE, DEEP_SLEEP]
+            occupied:
+              type: [boolean, 'null']
+            signalLevel:
+              type: [integer, 'null']
+              example: 24
+            statusRefreshedAt:
+              oneOf:
+                - $ref: './common.yaml#/components/schemas/DateTime'
+                - type: 'null'
+            name:
+              type: [string, 'null']
+              example: 家里车位
+            spaceNo:
+              type: [string, 'null']
+              example: B2-108
+            owner:
+              oneOf:
+                - type: object
+                  required: [userId, nickname, since]
+                  properties:
+                    userId:
+                      $ref: './common.yaml#/components/schemas/Id'
+                    nickname:
+                      type: string
+                      example: 张先生
+                    phoneMasked:
+                      oneOf:
+                        - $ref: './common.yaml#/components/schemas/PhoneMasked'
+                        - type: 'null'
+                    since:
+                      $ref: './common.yaml#/components/schemas/DateTime'
+                - type: 'null'
+            members:
+              type: array
+              items:
+                type: object
+                required: [userId, nickname, validFrom, status]
+                properties:
+                  userId:
+                    $ref: './common.yaml#/components/schemas/Id'
+                  nickname:
+                    type: string
+                    example: 张大爷
+                  phoneMasked:
+                    oneOf:
+                      - $ref: './common.yaml#/components/schemas/PhoneMasked'
+                      - type: 'null'
+                  remark:
+                    type: [string, 'null']
+                    example: 爸爸
+                  validFrom:
+                    $ref: './common.yaml#/components/schemas/DateTime'
+                  validTo:
+                    oneOf:
+                      - $ref: './common.yaml#/components/schemas/DateTime'
+                      - type: 'null'
+                  status:
+                    $ref: './common.yaml#/components/schemas/MemberStatus'
+
+    ImportTask:
+      type: object
+      required: [id, fileName, status, totalRows, successRows, failedRows, operatorName, createdAt]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Id'
+        fileName:
+          type: string
+          example: 2026-12 第一批.xlsx
+        status:
+          type: string
+          enum: [PENDING, RUNNING, DONE, FAILED]
+          example: DONE
+        totalRows:
+          type: integer
+          example: 500
+        successRows:
+          type: integer
+          example: 497
+        failedRows:
+          type: integer
+          example: 3
+        errorMessage:
+          type: [string, 'null']
+        printExportedAt:
+          description: 非空表示印刷文件已导出，不可再导出
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+        operatorName:
+          type: string
+          example: 运维小王
+        createdAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+        finishedAt:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+
+    ImportTaskDetail:
+      allOf:
+        - $ref: '#/components/schemas/ImportTask'
+        - type: object
+          required: [failedRowsDetail]
+          properties:
+            failedRowsDetail:
+              type: array
+              items:
+                type: object
+                required: [row, reason]
+                properties:
+                  row:
+                    type: integer
+                    description: 文件中的行号（含表头）
+                    example: 12
+                  sn:
+                    type: [string, 'null']
+                  imei:
+                    type: [string, 'null']
+                  bleMac:
+                    type: [string, 'null']
+                  reason:
+                    type: string
+                    example: 与第 5 行重复
+
+    DeviceEvent:
+      type: object
+      required: [id, gateStatus, source, approx, rawFrame, at]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Id'
+        gateStatus:
+          $ref: './common.yaml#/components/schemas/GateStatus'
+        statusCode:
+          type: [string, 'null']
+          description: 原始状态码（十六进制）
+          example: '09'
+        reasonCode:
+          type: [string, 'null']
+          description: 原始动作原因码（十六进制）
+          example: '16'
+        source:
+          $ref: './common.yaml#/components/schemas/TriggerSource'
+        occupied:
+          type: [boolean, 'null']
+        approx:
+          type: boolean
+        rawFrame:
+          $ref: './common.yaml#/components/schemas/RawFrame'
+        at:
+          $ref: './common.yaml#/components/schemas/DateTime'
+
+    CommandAudit:
+      type: object
+      required: [id, deviceId, sn, operator, role, channel, action, status, issuedAt]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Id'
+        deviceId:
+          $ref: './common.yaml#/components/schemas/Id'
+        sn:
+          $ref: './common.yaml#/components/schemas/Sn'
+        operator:
+          type: object
+          required: [type, id, name]
+          properties:
+            type:
+              type: string
+              enum: [USER, ADMIN]
+            id:
+              $ref: './common.yaml#/components/schemas/Id'
+            name:
+              type: string
+              example: 张先生
+            phoneMasked:
+              oneOf:
+                - $ref: './common.yaml#/components/schemas/PhoneMasked'
+                - type: 'null'
+        role:
+          type: string
+          enum: [OWNER, MEMBER, ADMIN]
+        channel:
+          $ref: './common.yaml#/components/schemas/Channel'
+        action:
+          type: string
+          enum: [OPEN, CLOSE, QUERY_STATUS, QUERY_VERSION]
+        status:
+          $ref: './common.yaml#/components/schemas/CommandStatus'
+        resultCode:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/CommandResultCode'
+            - type: 'null'
+        fwVersion:
+          type: [string, 'null']
+          description: QUERY_VERSION 成功时返回
+        downFrame:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/RawFrame'
+            - type: 'null'
+        rawFrame:
+          description: 判定结果的上行帧
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/RawFrame'
+            - type: 'null'
+        issuedAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+        finishedAt:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+        durationMs:
+          type: [integer, 'null']
+          example: 1240
+
+    AppUser:
+      type: object
+      required: [id, nickname, status, ownedCount, memberCount, createdAt]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Id'
+        nickname:
+          type: string
+          example: 张先生
+        phoneMasked:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/PhoneMasked'
+            - type: 'null'
+        status:
+          type: string
+          enum: [ACTIVE, BANNED]
+        ownedCount:
+          type: integer
+          example: 1
+        memberCount:
+          type: integer
+          example: 0
+        createdAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+        lastLoginAt:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+
+    AppUserDetail:
+      allOf:
+        - $ref: '#/components/schemas/AppUser'
+        - type: object
+          required: [ownedDevices, memberDevices]
+          properties:
+            ownedDevices:
+              type: array
+              items:
+                type: object
+                required: [deviceId, sn, since]
+                properties:
+                  deviceId:
+                    $ref: './common.yaml#/components/schemas/Id'
+                  sn:
+                    $ref: './common.yaml#/components/schemas/Sn'
+                  name:
+                    type: [string, 'null']
+                  since:
+                    $ref: './common.yaml#/components/schemas/DateTime'
+            memberDevices:
+              type: array
+              items:
+                type: object
+                required: [deviceId, sn, validFrom, status]
+                properties:
+                  deviceId:
+                    $ref: './common.yaml#/components/schemas/Id'
+                  sn:
+                    $ref: './common.yaml#/components/schemas/Sn'
+                  name:
+                    type: [string, 'null']
+                  validFrom:
+                    $ref: './common.yaml#/components/schemas/DateTime'
+                  validTo:
+                    oneOf:
+                      - $ref: './common.yaml#/components/schemas/DateTime'
+                      - type: 'null'
+                  status:
+                    $ref: './common.yaml#/components/schemas/MemberStatus'
+
+    Alarm:
+      type: object
+      required: [id, deviceId, sn, type, level, firstAt, lastAt, count, status]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Id'
+        deviceId:
+          $ref: './common.yaml#/components/schemas/Id'
+        sn:
+          $ref: './common.yaml#/components/schemas/Sn'
+        type:
+          $ref: './common.yaml#/components/schemas/AlarmType'
+        level:
+          type: string
+          enum: [CRITICAL, WARNING]
+        firstAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+        lastAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+        count:
+          type: integer
+          description: 同设备同类 30 分钟内合并的次数
+          example: 3
+        status:
+          type: string
+          enum: [OPEN, HANDLED]
+        handlerName:
+          type: [string, 'null']
+        handledAt:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+        note:
+          type: [string, 'null']
+
+    AdminUser:
+      type: object
+      required: [id, username, displayName, role, status, createdAt]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Id'
+        username:
+          type: string
+          example: ops01
+        displayName:
+          type: string
+          example: 运维小王
+        role:
+          $ref: '#/components/schemas/AdminRole'
+        status:
+          type: string
+          enum: [ACTIVE, DISABLED]
+        lockedUntil:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+        lastLoginAt:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+        createdAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+
+    AdminUserWithPassword:
+      allOf:
+        - $ref: '#/components/schemas/AdminUser'
+        - type: object
+          required: [tempPassword]
+          properties:
+            tempPassword:
+              type: string
+              description: 临时密码，只在本次响应中出现
+              example: Tmp-8xQ2vN4k
+
+    Role:
+      type: object
+      required: [code, name, permissions]
+      properties:
+        code:
+          $ref: '#/components/schemas/AdminRole'
+        name:
+          type: string
+          example: 运维
+        permissions:
+          type: array
+          items:
+            type: string
+
+    OperationLog:
+      type: object
+      required: [id, adminName, action, result, createdAt]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Id'
+        adminName:
+          type: string
+          example: kefu01
+        action:
+          type: string
+          example: DEVICE_FORCE_UNBIND
+        targetType:
+          type: [string, 'null']
+          example: DEVICE
+        targetId:
+          type: [string, 'null']
+          example: '1001'
+        reason:
+          type: [string, 'null']
+          example: 业主持购买凭证申诉抢绑
+        result:
+          type: string
+          enum: [SUCCESS, FAIL]
+        ip:
+          type: [string, 'null']
+          example: 10.0.0.12
+        detail:
+          type: [object, 'null']
+          additionalProperties: true
+        createdAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+
+    SystemConfig:
+      type: object
+      required: [key, value, valueType, description, updatedAt]
+      properties:
+        key:
+          type: string
+          example: member.max_per_device
+        value:
+          type: string
+          example: '5'
+        valueType:
+          type: string
+          enum: [INT, STRING, BOOL]
+        description:
+          type: string
+          example: 每台设备被授权人上限（含待接受邀请）
+        updatedBy:
+          type: [string, 'null']
+        updatedAt:
+          $ref: './common.yaml#/components/schemas/DateTime'

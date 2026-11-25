@@ -21,12 +21,13 @@
 | server | Palantir Java Format（Spotless） | `./gradlew spotlessApply`、`./gradlew check` |
 | admin-web | ESLint + Prettier | `npm run lint`、`npm run format` |
 | miniapp | TypeScript strict | `npm run typecheck` |
+| docs/api | OpenAPI 3.1 + Redocly | `npx @redocly/cli@1.34.5 lint`；改接口见 [docs/api/README.md](docs/api/README.md) 的变更规则 |
 
 通用格式见根目录 `.editorconfig`。
 
 ## CI
 
-每个 PR 和 `main` 的每次推送都会运行 [CI](.github/workflows/ci.yml)，四个检查全部通过才能合入：
+每个 PR 和 `main` 的每次推送都会运行 [CI](.github/workflows/ci.yml)，五个检查全部通过才能合入：
 
 | 检查 | 内容 |
 | --- | --- |
@@ -34,6 +35,7 @@
 | `admin-web · lint & build` | ESLint、Prettier、`vue-tsc`、`vite build`；产出 `dist` |
 | `miniapp · typecheck` | `tsc --noEmit` |
 | `deploy · compose config` | 校验本地 Compose 文件 |
+| `api · lint` | Redocly 校验 `docs/api` 下的 OpenAPI 契约 |
 
 失败时 server 的测试报告会作为 `server-test-reports` 制品上传。
 

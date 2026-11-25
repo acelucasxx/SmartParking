@@ -1,0 +1,394 @@
+# 小程序与后台共用的组件：响应信封、错误码、分页、枚举。
+# 只被 openapi-app.yaml / openapi-admin.yaml 通过 $ref 引用，本身不是独立的 OpenAPI 文档。
+components:
+  schemas:
+    Envelope:
+      type: object
+      description: 统一响应信封。`code` 为 0 表示成功；非 0 时 `data` 缺省，取值见 ErrorCode。
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: 成功
+
+    ErrorBody:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+          description: 可直接展示给用户的提示；同一错误码在具体场景下可能带补充信息，如剩余尝试次数。
+          example: 激活码错误，还可尝试 3 次
+
+    # 错误码表。三组 x-enum-* 数组与 enum 一一对应，
+    # 服务端 ErrorCode 枚举与 docs/api/README.md 由单元测试校验与这里一致。
+    ErrorCode:
+      type: integer
+      description: |
+        区段：1xxxx 通用，2xxxx 设备与控制，3xxxx 归属与授权，4xxxx 后台。完整说明见 docs/api/README.md。
+      enum:
+        - 0
+        - 10001
+        - 10002
+        - 10003
+        - 10004
+        - 10009
+        - 10010
+        - 10011
+        - 10020
+        - 10021
+        - 19999
+        - 20001
+        - 20002
+        - 20003
+        - 20004
+        - 20005
+        - 20006
+        - 20010
+        - 20011
+        - 30001
+        - 30002
+        - 30003
+        - 30004
+        - 30005
+        - 30010
+        - 30011
+        - 30012
+        - 30013
+        - 30014
+        - 30015
+        - 30016
+        - 30020
+        - 30021
+        - 30022
+        - 30023
+        - 40001
+        - 40002
+        - 40003
+        - 40010
+        - 40011
+        - 40012
+        - 40013
+        - 40014
+        - 40015
+        - 40020
+        - 40021
+        - 40030
+      x-enum-varnames:
+        - OK
+        - BAD_REQUEST
+        - UNAUTHORIZED
+        - FORBIDDEN
+        - NOT_FOUND
+        - CONFLICT
+        - USER_BANNED
+        - TOO_MANY_REQUESTS
+        - WX_LOGIN_FAILED
+        - WX_PHONE_FAILED
+        - INTERNAL_ERROR
+        - DEVICE_NOT_FOUND
+        - DEVICE_DISABLED
+        - DEVICE_OFFLINE
+        - DEVICE_SLEEPING
+        - COMMAND_IN_PROGRESS
+        - DEVICE_FAULT
+        - BLE_NOT_AVAILABLE
+        - BLE_TICKET_INVALID
+        - ACTIVATE_CODE_WRONG
+        - ACTIVATE_LOCKED
+        - DEVICE_ALREADY_BOUND
+        - NOT_OWNER
+        - ACCESS_EXPIRED
+        - MEMBER_LIMIT_REACHED
+        - INVALID_PERIOD
+        - INVITE_EXPIRED
+        - INVITE_USED
+        - INVITE_CANCELLED
+        - ALREADY_MEMBER
+        - CANNOT_ACCEPT_OWN
+        - TRANSFER_EXPIRED
+        - TRANSFER_USED
+        - TRANSFER_CANCELLED
+        - TRANSFER_PENDING_EXISTS
+        - LOGIN_FAILED
+        - ACCOUNT_LOCKED
+        - ACCOUNT_DISABLED
+        - SN_DUPLICATE
+        - IMEI_INVALID
+        - IMEI_DUPLICATE
+        - MAC_DUPLICATE
+        - IMPORT_FILE_INVALID
+        - PRINT_ALREADY_EXPORTED
+        - REASON_REQUIRED
+        - DEVICE_NOT_BOUND
+        - USERNAME_EXISTS
+      x-enum-http-status:
+        - 200
+        - 400
+        - 401
+        - 403
+        - 404
+        - 409
+        - 403
+        - 429
+        - 502
+        - 502
+        - 500
+        - 404
+        - 403
+        - 409
+        - 409
+        - 409
+        - 409
+        - 409
+        - 400
+        - 400
+        - 429
+        - 409
+        - 403
+        - 403
+        - 409
+        - 400
+        - 409
+        - 409
+        - 409
+        - 409
+        - 400
+        - 409
+        - 409
+        - 409
+        - 409
+        - 401
+        - 403
+        - 403
+        - 409
+        - 400
+        - 409
+        - 409
+        - 400
+        - 409
+        - 400
+        - 409
+        - 409
+      x-enum-descriptions:
+        - 成功
+        - 请求参数不合法
+        - 未登录或登录已过期
+        - 无权执行该操作
+        - 资源不存在
+        - 状态冲突，请刷新后重试
+        - 账号已停用
+        - 操作过于频繁，请稍后再试
+        - 微信登录失败，请重试
+        - 获取手机号失败，请重试
+        - 系统繁忙，请稍后重试
+        - 设备不存在
+        - 设备已停用，请联系客服
+        - 设备离线，可在现场使用蓝牙
+        - 设备暂时无法远程控制，可用蓝牙
+        - 设备正在执行上一条指令
+        - 设备故障，请联系客服
+        - 蓝牙控制暂未开放
+        - 蓝牙票据无效或已过期
+        - 激活码错误
+        - 错误次数过多，请 30 分钟后再试
+        - 该设备已有主人
+        - 仅主人可执行该操作
+        - 授权已到期或已被撤销
+        - 成员名额已满
+        - 有效期不合法
+        - 邀请已过期
+        - 邀请已被他人接受
+        - 邀请已撤销
+        - 你已是该设备的成员
+        - 不能接受自己发出的邀请或转让
+        - 转让卡片已过期
+        - 转让卡片已被他人接受
+        - 转让已取消
+        - 已有进行中的转让
+        - 用户名或密码错误
+        - 账号已锁定，请稍后再试
+        - 账号已停用
+        - SN 已存在
+        - IMEI 不合法
+        - IMEI 已存在
+        - 蓝牙 MAC 已存在
+        - 导入文件格式不正确
+        - 印刷文件已导出过
+        - 必须填写原因
+        - 设备未绑定
+        - 用户名已存在
+
+    PageMeta:
+      type: object
+      required: [total, page, size]
+      properties:
+        total:
+          type: integer
+          example: 42
+        page:
+          type: integer
+          description: 从 1 开始
+          example: 1
+        size:
+          type: integer
+          example: 20
+
+    Id:
+      type: integer
+      format: int64
+      minimum: 1
+      example: 1001
+
+    DateTime:
+      type: string
+      format: date-time
+      description: ISO 8601，带时区偏移，统一东八区。
+      example: '2026-12-31T18:00:00+08:00'
+
+    Sn:
+      type: string
+      pattern: '^[A-Z0-9]{8,32}$'
+      example: SP2612000123
+
+    PhoneMasked:
+      type: string
+      description: 脱敏手机号，只显示前 3 位与后 4 位
+      example: 138****5678
+
+    RawFrame:
+      type: string
+      description: RS485 原始帧，十六进制大写，字节间空格分隔
+      example: FD 00 01 09 16 11 FD FA
+
+    BindStatus:
+      type: string
+      enum: [PENDING, BOUND]
+      description: PENDING 待激活 / BOUND 已绑定
+
+    GateStatus:
+      type: string
+      enum: [OPENED, CLOSED, OPENING, CLOSING, STOPPED, FAULT, UNKNOWN]
+      description: OPENED 已抬杆（放行）/ CLOSED 已落杆（占位）/ OPENING、CLOSING 动作中 / STOPPED 动作被打断 / FAULT 电机故障 / UNKNOWN 未知
+      example: CLOSED
+
+    OnlineState:
+      type: string
+      enum: [ONLINE, SLEEP, OFFLINE]
+      description: 判定规则见 PRD 8.5
+      example: ONLINE
+
+    GateAction:
+      type: string
+      enum: [OPEN, CLOSE]
+      description: OPEN 抬杆 / CLOSE 落杆
+
+    Channel:
+      type: string
+      enum: [REMOTE, BLE]
+      description: REMOTE 远程 / BLE 蓝牙
+
+    CommandStatus:
+      type: string
+      enum: [PENDING, SENT, EXECUTING, SUCCESS, FAILED, TIMEOUT]
+      description: PENDING、SENT、EXECUTING 为未终结；只有到位才算 SUCCESS
+      example: EXECUTING
+
+    CommandResultCode:
+      type: string
+      enum: [ALREADY_IN_TARGET, MOTOR_FAULT, OBSTRUCTED, INFRARED, INTERRUPTED, TIMEOUT]
+      description: |
+        ALREADY_IN_TARGET 已在目标状态未下发（视为成功）/ MOTOR_FAULT 电机故障 / OBSTRUCTED 遇阻 /
+        INFRARED 红外防砸 / INTERRUPTED 中间停止 / TIMEOUT 15 秒未到位
+
+    TriggerSource:
+      type: string
+      enum: [APP, REMOTE_CONTROL, GROUND_SENSOR, EXTERNAL_SWITCH, AUTO_CLOSE, OBSTRUCTED, INFRARED, POWER_ON, UNKNOWN]
+      description: |
+        动作的触发方式，由状态帧原因码映射（PRD 8.3）：APP 平台指令（16）/ REMOTE_CONTROL 遥控器（01/02）/
+        GROUND_SENSOR 地感雷达（03/04）/ EXTERNAL_SWITCH 外部开关（06/07）/ AUTO_CLOSE 延时自动关（10）/
+        OBSTRUCTED 遇阻（11）/ INFRARED 红外防砸（12）/ POWER_ON 上电找零（15）
+
+    MemberRole:
+      type: string
+      enum: [OWNER, MEMBER]
+      description: 当前用户在该设备上的角色
+
+    MemberStatus:
+      type: string
+      enum: [ACTIVE, REVOKED, EXPIRED, QUIT]
+
+    Period:
+      type: object
+      description: |
+        授权有效期。PERMANENT 永久；RELATIVE 从接受邀请（或修改）时起算 durationDays 天；CUSTOM 自定义起止，精确到分钟，止须晚于当前时间。
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [PERMANENT, RELATIVE, CUSTOM]
+          example: RELATIVE
+        durationDays:
+          type: integer
+          enum: [1, 7, 30]
+          description: type = RELATIVE 时必填
+          example: 7
+        validFrom:
+          $ref: '#/components/schemas/DateTime'
+        validTo:
+          $ref: '#/components/schemas/DateTime'
+
+    MessageType:
+      type: string
+      enum: [GRANT, REVOKE, EXPIRE, TRANSFER, UNBIND, FAULT, SYSTEM]
+
+    AlarmType:
+      type: string
+      enum: [MOTOR_FAULT, OBSTRUCTED, INFRARED, CMD_TIMEOUT, OFFLINE_24H]
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Size:
+      name: size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    DeviceId:
+      name: deviceId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Id'
+
+  responses:
+    Ok:
+      description: 成功，无返回数据
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Envelope'
+    Error:
+      description: |
+        业务或参数错误。HTTP 状态码与错误码对应关系见错误码表；具体接口可能返回的错误码列在该接口的 x-error-codes 中，
+        另外任何需要登录的接口都可能返回 10002 / 10010。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorBody'
+          example:
+            code: 10001
+            message: 请求参数不合法

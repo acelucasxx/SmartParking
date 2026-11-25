@@ -1,0 +1,1393 @@
+openapi: 3.1.0
+info:
+  title: 智能车位道闸 · 小程序接口
+  version: 1.0.0
+  description: |
+    小程序端接口契约 v1。依据 PRD V1.1 第 3、5、6 章。
+
+    - 统一响应信封 `{code, message, data}`，`code = 0` 为成功；错误码表见 `docs/api/README.md`。
+    - 认证：`Authorization: Bearer <token>`，由 `/auth/login` 签发。
+    - 所有权限判定在服务端完成：设备启用、用户未封禁，且为主人或有效期内的被授权人。
+    - 每个接口可能返回的业务错误码列在 `x-error-codes`。
+servers:
+  - url: http://localhost:8080/api/app
+    description: 本地
+security:
+  - bearer: []
+tags:
+  - name: auth
+    description: 登录与个人信息（页面 1、13）
+  - name: device
+    description: 车位列表、设备详情与设置（页面 2、3、10）
+  - name: bind
+    description: 扫码绑定（页面 4、5）
+  - name: control
+    description: 远程抬杆 / 落杆（页面 3）
+  - name: record
+    description: 操作记录（页面 11）
+  - name: member
+    description: 成员管理与邀请（页面 6、7、8）
+  - name: transfer
+    description: 转让与解绑（页面 9、10）
+  - name: ble
+    description: 蓝牙近场控制（页面 12）
+  - name: message
+    description: 消息中心（页面 13）
+
+paths:
+  # ---------------------------------------------------------------- auth
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: 微信登录
+      description: 用 `wx.login` 的 code 换取会话（code2session），首次登录自动注册。
+      security: []
+      x-error-codes: [10001, 10010, 10020]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+                  description: wx.login 返回的临时 code
+                  example: 0a3Xyz000abc
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/LoginResult'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+        '5XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /auth/phone:
+    post:
+      tags: [auth]
+      operationId: bindPhone
+      summary: 授权手机号
+      description: 用手机号快速验证组件返回的动态 code 换取手机号，加密存储。
+      x-error-codes: [10001, 10021]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+                  description: getPhoneNumber 返回的动态 code
+                  example: 8b1c2d000def
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/UserProfile'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+        '5XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: 退出登录
+      responses:
+        '200':
+          $ref: './common.yaml#/components/responses/Ok'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /me:
+    get:
+      tags: [auth]
+      operationId: getMe
+      summary: 我的信息
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/UserProfile'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+    patch:
+      tags: [auth]
+      operationId: updateMe
+      summary: 修改昵称
+      x-error-codes: [10001]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nickname]
+              properties:
+                nickname:
+                  type: string
+                  minLength: 1
+                  maxLength: 32
+                  example: 张先生
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/UserProfile'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  # ---------------------------------------------------------------- device
+  /devices:
+    get:
+      tags: [device]
+      operationId: listDevices
+      summary: 我的车位
+      description: 作为主人的设备在前，被授权的设备在后；已到期或被撤销的授权不出现。
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DeviceCard'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /devices/{deviceId}:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+    get:
+      tags: [device]
+      operationId: getDevice
+      summary: 设备详情（控制页）
+      x-error-codes: [10004, 30005]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/DeviceDetail'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+    patch:
+      tags: [device]
+      operationId: updateDevice
+      summary: 修改设备名称、车位号
+      description: 仅主人。设备禁用时也允许修改。
+      x-error-codes: [10001, 10004, 30004]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 32
+                  example: 家里车位
+                spaceNo:
+                  type: string
+                  maxLength: 32
+                  example: B2-108
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/DeviceCard'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /devices/{deviceId}/status:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+    get:
+      tags: [device]
+      operationId: getDeviceStatus
+      summary: 设备实时状态
+      description: 轻量接口。控制页停留期间每 5 秒轮询；绑定结果页据 `statusRefreshedAt` 判定“联网成功”。
+      x-error-codes: [10004, 30005]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/DeviceStatus'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  # ---------------------------------------------------------------- bind
+  /bind/{sn}:
+    parameters:
+      - name: sn
+        in: path
+        required: true
+        schema:
+          $ref: './common.yaml#/components/schemas/Sn'
+    get:
+      tags: [bind]
+      operationId: previewBind
+      summary: 扫码后预检
+      description: 进入绑定页时调用，决定显示激活码输入框还是“已有主人”。
+      x-error-codes: [20001]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/BindPreview'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /bind:
+    post:
+      tags: [bind]
+      operationId: bindDevice
+      summary: 输入激活码绑定
+      description: |
+        三重校验：SN 存在、状态为待激活、激活码哈希匹配。同一 SN 连续输错 5 次锁定 30 分钟，
+        30001 的 message 带剩余次数。成功后服务端立即下发一次查询状态（设备在线时）。
+      x-error-codes: [10001, 20001, 20002, 30001, 30002, 30003]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sn, activateCode]
+              properties:
+                sn:
+                  $ref: './common.yaml#/components/schemas/Sn'
+                activateCode:
+                  type: string
+                  pattern: '^[0-9A-Za-z]{8}$'
+                  example: K7Q2M9XA
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/DeviceCard'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  # ---------------------------------------------------------------- control
+  /devices/{deviceId}/commands:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+    post:
+      tags: [control]
+      operationId: sendCommand
+      summary: 远程抬杆 / 落杆
+      description: |
+        立即返回指令，前端每 1 秒轮询 `GET /devices/{deviceId}/commands/{commandId}` 直到终结。
+
+        - 已在目标状态（缓存 30 秒内由状态帧刷新）：不下发，直接返回 `status = SUCCESS`、`resultCode = ALREADY_IN_TARGET`。
+        - 设备离线或休眠不排队：返回 20003 / 20004。
+        - 同一 `idempotencyKey` 重复提交返回同一条指令；同一设备已有未终结指令返回 20005。
+      x-error-codes: [10001, 10004, 20002, 20003, 20004, 20005, 20006, 30005]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action, idempotencyKey]
+              properties:
+                action:
+                  $ref: './common.yaml#/components/schemas/GateAction'
+                idempotencyKey:
+                  type: string
+                  minLength: 8
+                  maxLength: 64
+                  description: 每次点击生成一个 UUID，重试时复用
+                  example: 4f2c8d0e-7b1a-4c3e-9f55-2a6d1e0b9c71
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Command'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /devices/{deviceId}/commands/{commandId}:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+      - name: commandId
+        in: path
+        required: true
+        schema:
+          $ref: './common.yaml#/components/schemas/Id'
+    get:
+      tags: [control]
+      operationId: getCommand
+      summary: 查询指令结果
+      x-error-codes: [10004, 30005]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Command'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  # ---------------------------------------------------------------- record
+  /devices/{deviceId}/records:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+    get:
+      tags: [record]
+      operationId: listRecords
+      summary: 操作记录
+      description: |
+        主人：自成为主人起的全部记录，含遥控器、地感等非 App 触发的动作；
+        被授权人：仅本人发起的记录。按时间倒序。
+      x-error-codes: [10001, 10004, 30005]
+      parameters:
+        - name: date
+          in: query
+          description: 按日筛选（东八区），缺省为全部
+          schema:
+            type: string
+            format: date
+            example: '2026-12-01'
+        - $ref: './common.yaml#/components/parameters/Page'
+        - $ref: './common.yaml#/components/parameters/Size'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        allOf:
+                          - $ref: './common.yaml#/components/schemas/PageMeta'
+                          - type: object
+                            required: [items]
+                            properties:
+                              items:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/OperationRecord'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  # ---------------------------------------------------------------- member
+  /devices/{deviceId}/members:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+    get:
+      tags: [member]
+      operationId: listMembers
+      summary: 成员管理
+      description: 仅主人。`used` 含待接受的邀请。
+      x-error-codes: [10004, 30004]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/MemberOverview'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /devices/{deviceId}/members/{memberId}:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+      - name: memberId
+        in: path
+        required: true
+        schema:
+          $ref: './common.yaml#/components/schemas/Id'
+    patch:
+      tags: [member]
+      operationId: updateMember
+      summary: 修改有效期或备注
+      description: 仅主人，立即生效；被授权人收到站内消息。RELATIVE 从修改时起算。
+      x-error-codes: [10001, 10004, 20002, 30004, 30011]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                period:
+                  $ref: './common.yaml#/components/schemas/Period'
+                remark:
+                  type: string
+                  maxLength: 32
+                  example: 爸爸
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Member'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+    delete:
+      tags: [member]
+      operationId: revokeMember
+      summary: 撤销授权
+      description: 仅主人，立即生效，释放名额；被授权人收到站内消息。
+      x-error-codes: [10004, 30004]
+      responses:
+        '200':
+          $ref: './common.yaml#/components/responses/Ok'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /devices/{deviceId}/membership:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+    delete:
+      tags: [member]
+      operationId: quitMembership
+      summary: 被授权人主动退出
+      x-error-codes: [10004, 30005]
+      responses:
+        '200':
+          $ref: './common.yaml#/components/responses/Ok'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /devices/{deviceId}/invites:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+    post:
+      tags: [member]
+      operationId: createInvite
+      summary: 邀请家人
+      description: |
+        仅主人。生成一次性邀请，24 小时有效，接受前占用名额。返回的 `token` 只出现这一次，
+        用于拼接分享卡片路径。
+      x-error-codes: [10001, 10004, 20002, 30004, 30010, 30011]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [period]
+              properties:
+                period:
+                  $ref: './common.yaml#/components/schemas/Period'
+                remark:
+                  type: string
+                  maxLength: 32
+                  example: 爸爸
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/ShareCard'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /devices/{deviceId}/invites/{inviteId}:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+      - name: inviteId
+        in: path
+        required: true
+        schema:
+          $ref: './common.yaml#/components/schemas/Id'
+    delete:
+      tags: [member]
+      operationId: cancelInvite
+      summary: 撤回未接受的邀请
+      x-error-codes: [10004, 30004]
+      responses:
+        '200':
+          $ref: './common.yaml#/components/responses/Ok'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /invites/{token}:
+    parameters:
+      - $ref: '#/components/parameters/Token'
+    get:
+      tags: [member]
+      operationId: previewInvite
+      summary: 打开邀请卡片
+      description: 只读预览。邀请失效时仍返回 200，由 `state` 告诉页面显示哪种异常态。
+      x-error-codes: [10004]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/InvitePreview'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /invites/{token}/accept:
+    parameters:
+      - $ref: '#/components/parameters/Token'
+    post:
+      tags: [member]
+      operationId: acceptInvite
+      summary: 接受邀请
+      description: 服务端再次校验：未过期未撤销、发出人仍是当前主人、名额未超、设备未禁用。
+      x-error-codes: [10004, 20002, 30010, 30012, 30013, 30014, 30015, 30016]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/DeviceCard'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  # ---------------------------------------------------------------- transfer
+  /devices/{deviceId}/transfer:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+    get:
+      tags: [transfer]
+      operationId: getPendingTransfer
+      summary: 当前进行中的转让
+      description: 仅主人。没有进行中的转让时 `data` 为 null。
+      x-error-codes: [10004, 30004]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        oneOf:
+                          - $ref: '#/components/schemas/PendingTransfer'
+                          - type: 'null'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+    post:
+      tags: [transfer]
+      operationId: createTransfer
+      summary: 发起转让
+      description: 仅主人。24 小时有效，同一设备同时只有一张有效卡片；发起不影响现有被授权人，接受时才清空。
+      x-error-codes: [10004, 20002, 30004, 30023]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/ShareCard'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+    delete:
+      tags: [transfer]
+      operationId: cancelTransfer
+      summary: 取消转让
+      x-error-codes: [10004, 30004]
+      responses:
+        '200':
+          $ref: './common.yaml#/components/responses/Ok'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /transfers/{token}:
+    parameters:
+      - $ref: '#/components/parameters/Token'
+    get:
+      tags: [transfer]
+      operationId: previewTransfer
+      summary: 打开转让卡片
+      description: 只读预览，失效时由 `state` 区分。
+      x-error-codes: [10004]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/TransferPreview'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /transfers/{token}/accept:
+    parameters:
+      - $ref: '#/components/parameters/Token'
+    post:
+      tags: [transfer]
+      operationId: acceptTransfer
+      summary: 接收设备
+      description: |
+        同一事务内：设备换主人、作废全部待接受邀请、全部被授权人置为已撤销、写归属变更；
+        原主人与被授权人收到站内消息。新主人只能看到此刻之后的记录。
+      x-error-codes: [10004, 20002, 30016, 30020, 30021, 30022]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/DeviceCard'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /devices/{deviceId}/unbind:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+    post:
+      tags: [transfer]
+      operationId: unbindDevice
+      summary: 解绑设备
+      description: 仅主人，前端二次确认。设备回到待激活，全部被授权人失效，重新绑定仍需激活码。
+      x-error-codes: [10004, 30004]
+      responses:
+        '200':
+          $ref: './common.yaml#/components/responses/Ok'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  # ---------------------------------------------------------------- ble
+  /devices/{deviceId}/ble-tickets:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/DeviceId'
+    post:
+      tags: [ble]
+      operationId: createBleTicket
+      summary: 申请蓝牙票据
+      description: 60 秒有效、一次性。固件未支持票据校验前返回 20010，入口不上线（PRD 5.4）。
+      x-error-codes: [10001, 10004, 20002, 20010, 30005]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  $ref: './common.yaml#/components/schemas/GateAction'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/BleTicket'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /ble-reports:
+    post:
+      tags: [ble]
+      operationId: reportBleResults
+      summary: 上报蓝牙执行结果
+      description: 批量上报，手机无网时缓存、恢复后补报。按 `ticketId` 幂等，重复上报忽略。
+      x-error-codes: [10001]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reports]
+              properties:
+                reports:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items:
+                    $ref: '#/components/schemas/BleReport'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        type: object
+                        required: [accepted, rejected]
+                        properties:
+                          accepted:
+                            type: integer
+                            example: 1
+                          rejected:
+                            type: array
+                            description: 票据无效或不属于当前用户的 ticketId
+                            items:
+                              type: string
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  # ---------------------------------------------------------------- message
+  /messages:
+    get:
+      tags: [message]
+      operationId: listMessages
+      summary: 站内消息
+      parameters:
+        - $ref: './common.yaml#/components/parameters/Page'
+        - $ref: './common.yaml#/components/parameters/Size'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        allOf:
+                          - $ref: './common.yaml#/components/schemas/PageMeta'
+                          - type: object
+                            required: [items]
+                            properties:
+                              items:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Message'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /messages/unread-count:
+    get:
+      tags: [message]
+      operationId: getUnreadCount
+      summary: 未读数（tabBar 角标）
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: './common.yaml#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        type: object
+                        required: [count]
+                        properties:
+                          count:
+                            type: integer
+                            example: 2
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+  /messages/read:
+    post:
+      tags: [message]
+      operationId: markMessagesRead
+      summary: 标记已读
+      x-error-codes: [10001]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: 传 ids 标记指定消息；传 all = true 全部已读
+              properties:
+                ids:
+                  type: array
+                  maxItems: 100
+                  items:
+                    $ref: './common.yaml#/components/schemas/Id'
+                all:
+                  type: boolean
+      responses:
+        '200':
+          $ref: './common.yaml#/components/responses/Ok'
+        '4XX':
+          $ref: './common.yaml#/components/responses/Error'
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+
+  parameters:
+    Token:
+      name: token
+      in: path
+      required: true
+      description: 分享卡片中的一次性 token（≥ 128 位随机，URL 安全 Base64）
+      schema:
+        type: string
+        minLength: 22
+        maxLength: 64
+        example: q3J9vX2mT8sLk4Wz1Rb7YcNe
+
+  schemas:
+    LoginResult:
+      type: object
+      required: [token, expiresAt, user]
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiJ9.mock.token
+        expiresAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+        user:
+          $ref: '#/components/schemas/UserProfile'
+
+    UserProfile:
+      type: object
+      required: [id, nickname, phoneBound]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Id'
+        nickname:
+          type: string
+          example: 张先生
+        phoneBound:
+          type: boolean
+          description: 未授权手机号时前端引导授权，绑定设备前必须完成
+          example: true
+        phoneMasked:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/PhoneMasked'
+            - type: 'null'
+
+    DeviceCard:
+      type: object
+      description: 车位首页卡片
+      required: [id, sn, role, enabled, onlineState, gateStatus]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Id'
+        sn:
+          $ref: './common.yaml#/components/schemas/Sn'
+        name:
+          type: [string, 'null']
+          example: 家里车位
+        spaceNo:
+          type: [string, 'null']
+          example: B2-108
+        role:
+          $ref: './common.yaml#/components/schemas/MemberRole'
+        validTo:
+          description: 被授权人的有效期止；主人或永久授权为 null
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+        enabled:
+          type: boolean
+          description: false 时卡片显示“设备已停用，请联系客服”
+          example: true
+        onlineState:
+          $ref: './common.yaml#/components/schemas/OnlineState'
+        gateStatus:
+          $ref: './common.yaml#/components/schemas/GateStatus'
+        occupied:
+          type: [boolean, 'null']
+          description: 车位有车；未知为 null
+          example: true
+        batteryPct:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 100
+          description: 设备未上报电量时为 null，显示“—”
+          example: 86
+        pendingCommandId:
+          description: 有未终结指令时返回，按钮置灰并继续轮询
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/Id'
+            - type: 'null'
+
+    DeviceStatus:
+      type: object
+      required: [id, enabled, onlineState, gateStatus]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Id'
+        enabled:
+          type: boolean
+        onlineState:
+          $ref: './common.yaml#/components/schemas/OnlineState'
+        gateStatus:
+          $ref: './common.yaml#/components/schemas/GateStatus'
+        occupied:
+          type: [boolean, 'null']
+        batteryPct:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 100
+        signalLevel:
+          type: [integer, 'null']
+          description: 信号强度 0–31
+          example: 24
+        statusRefreshedAt:
+          description: 最近一次由状态帧刷新的时刻；绑定后首次非空即“联网成功”
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+        lastSeenAt:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+        pendingCommandId:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/Id'
+            - type: 'null'
+
+    DeviceDetail:
+      allOf:
+        - $ref: '#/components/schemas/DeviceCard'
+        - type: object
+          required: [model, bleAvailable]
+          properties:
+            model:
+              type: string
+              example: SPG-100
+            fwVersion:
+              type: [string, 'null']
+              example: '1.0.3'
+            signalLevel:
+              type: [integer, 'null']
+              example: 24
+            statusRefreshedAt:
+              oneOf:
+                - $ref: './common.yaml#/components/schemas/DateTime'
+                - type: 'null'
+            lastSeenAt:
+              oneOf:
+                - $ref: './common.yaml#/components/schemas/DateTime'
+                - type: 'null'
+            ownerNickname:
+              type: string
+              description: 被授权人看到的主人昵称（看不到手机号）
+              example: 张先生
+            bleAvailable:
+              type: boolean
+              description: 蓝牙入口是否上线；false 时离线状态只显示原因
+              example: false
+            lastOperation:
+              oneOf:
+                - $ref: '#/components/schemas/OperationRecord'
+                - type: 'null'
+
+    BindPreview:
+      type: object
+      required: [sn, model, state]
+      properties:
+        sn:
+          $ref: './common.yaml#/components/schemas/Sn'
+        model:
+          type: string
+          example: SPG-100
+        state:
+          type: string
+          enum: [BINDABLE, BOUND_BY_ME, BOUND_BY_OTHER, DISABLED]
+          description: BINDABLE 显示激活码输入 / BOUND_BY_ME 直接进入控制页 / BOUND_BY_OTHER 提示已有主人并给出客服入口 / DISABLED 已停用
+          example: BINDABLE
+        deviceId:
+          description: state = BOUND_BY_ME 时返回
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/Id'
+            - type: 'null'
+
+    Command:
+      type: object
+      required: [id, deviceId, action, channel, status, issuedAt]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Id'
+        deviceId:
+          $ref: './common.yaml#/components/schemas/Id'
+        action:
+          $ref: './common.yaml#/components/schemas/GateAction'
+        channel:
+          $ref: './common.yaml#/components/schemas/Channel'
+        status:
+          $ref: './common.yaml#/components/schemas/CommandStatus'
+        gateStatus:
+          description: 执行中的闸杆状态，OPENING / CLOSING 时播放动画
+          $ref: './common.yaml#/components/schemas/GateStatus'
+        resultCode:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/CommandResultCode'
+            - type: 'null'
+        resultMessage:
+          type: [string, 'null']
+          description: 失败或超时时可直接展示的说明
+          example: 闸杆遇阻，请检查现场
+        issuedAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+        finishedAt:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+        durationMs:
+          type: [integer, 'null']
+          example: 1240
+
+    OperationRecord:
+      type: object
+      required: [id, at, approx, source, action]
+      properties:
+        id:
+          type: string
+          description: 记录 ID，来自指令（c-）或设备事件（e-），只用于列表去重
+          example: c-1001
+        at:
+          $ref: './common.yaml#/components/schemas/DateTime'
+        approx:
+          type: boolean
+          description: true 表示由定时查询发现，时间为发现时间，显示“约”
+          example: false
+        source:
+          $ref: './common.yaml#/components/schemas/TriggerSource'
+        action:
+          $ref: './common.yaml#/components/schemas/GateAction'
+        operatorName:
+          type: [string, 'null']
+          description: App 发起时为操作人昵称（主人看到被授权人的备注优先）；非 App 触发为 null
+          example: 爸爸
+        operatorRole:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/MemberRole'
+            - type: 'null'
+        channel:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/Channel'
+            - type: 'null'
+        result:
+          type: [string, 'null']
+          enum: [SUCCESS, FAILED, TIMEOUT, null]
+          description: 非 App 触发为 null
+          example: SUCCESS
+        resultCode:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/CommandResultCode'
+            - type: 'null'
+        durationMs:
+          type: [integer, 'null']
+          example: 1240
+
+    MemberOverview:
+      type: object
+      required: [limit, used, members, invites]
+      properties:
+        limit:
+          type: integer
+          description: 名额上限，后台可配，默认 5
+          example: 5
+        used:
+          type: integer
+          description: 生效成员 + 待接受邀请
+          example: 2
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/Member'
+        invites:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingInvite'
+
+    Member:
+      type: object
+      required: [id, nickname, validFrom, status]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Id'
+        nickname:
+          type: string
+          example: 张大爷
+        remark:
+          type: [string, 'null']
+          example: 爸爸
+        validFrom:
+          $ref: './common.yaml#/components/schemas/DateTime'
+        validTo:
+          description: null 为永久；剩余不足 24 小时前端显示“剩余 X 小时”
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/DateTime'
+            - type: 'null'
+        status:
+          $ref: './common.yaml#/components/schemas/MemberStatus'
+
+    PendingInvite:
+      type: object
+      required: [id, period, expireAt, createdAt]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Id'
+        remark:
+          type: [string, 'null']
+          example: 妈妈
+        period:
+          $ref: './common.yaml#/components/schemas/Period'
+        expireAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+        createdAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+
+    ShareCard:
+      type: object
+      description: 邀请或转让卡片。`token` 只在此处出现一次，前端拼进 `wx.shareAppMessage` 的 path。
+      required: [id, token, expireAt, path, title]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Id'
+        token:
+          type: string
+          example: q3J9vX2mT8sLk4Wz1Rb7YcNe
+        expireAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+        path:
+          type: string
+          example: /pages/invite/accept?token=q3J9vX2mT8sLk4Wz1Rb7YcNe
+        title:
+          type: string
+          example: 张先生邀请你使用「家里车位」
+
+    InvitePreview:
+      type: object
+      required: [deviceName, ownerNickname, period, expireAt, state]
+      properties:
+        deviceName:
+          type: string
+          example: 家里车位
+        ownerNickname:
+          type: string
+          example: 张先生
+        period:
+          $ref: './common.yaml#/components/schemas/Period'
+        remark:
+          type: [string, 'null']
+          example: 爸爸
+        expireAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+        state:
+          type: string
+          enum: [VALID, EXPIRED, ACCEPTED, CANCELLED, ALREADY_MEMBER, OWN_INVITE]
+          description: 非 VALID 时页面显示对应异常态，不显示接受按钮
+          example: VALID
+
+    PendingTransfer:
+      type: object
+      required: [id, expireAt, createdAt]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Id'
+        expireAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+        createdAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+
+    TransferPreview:
+      type: object
+      required: [deviceName, sn, fromNickname, expireAt, state]
+      properties:
+        deviceName:
+          type: string
+          example: 家里车位
+        sn:
+          $ref: './common.yaml#/components/schemas/Sn'
+        fromNickname:
+          type: string
+          example: 张先生
+        expireAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+        state:
+          type: string
+          enum: [VALID, EXPIRED, ACCEPTED, CANCELLED, OWN_TRANSFER]
+          example: VALID
+
+    BleTicket:
+      type: object
+      required: [ticketId, expireAt, bleMac, sn, action]
+      properties:
+        ticketId:
+          type: string
+          pattern: '^[0-9a-f]{32}$'
+          example: 9f86d081884c7d659a2feaa0c55ad015
+        expireAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
+        bleMac:
+          type: string
+          description: 连接时比对，确认是这台设备
+          example: 'AA:BB:CC:DD:EE:FF'
+        sn:
+          $ref: './common.yaml#/components/schemas/Sn'
+        action:
+          $ref: './common.yaml#/components/schemas/GateAction'
+        payload:
+          type: string
+          description: 写入 GATT 的票据载荷（Base64），格式待固件确定（PRD 12.1）
+          example: AQIDBA==
+
+    BleReport:
+      type: object
+      required: [ticketId, action, result, at]
+      properties:
+        ticketId:
+          type: string
+          example: 9f86d081884c7d659a2feaa0c55ad015
+        action:
+          $ref: './common.yaml#/components/schemas/GateAction'
+        result:
+          type: string
+          enum: [SUCCESS, FAILED]
+        failReason:
+          type: [string, 'null']
+          enum: [BLE_OFF, NOT_FOUND, CONNECT_FAILED, TICKET_REJECTED, DEVICE_ERROR, null]
+          description: 失败原因，决定提示“打开蓝牙 / 靠近设备 / 重试 / 联系客服”
+        at:
+          $ref: './common.yaml#/components/schemas/DateTime'
+        durationMs:
+          type: [integer, 'null']
+          example: 2300
+
+    Message:
+      type: object
+      required: [id, type, title, content, read, createdAt]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Id'
+        type:
+          $ref: './common.yaml#/components/schemas/MessageType'
+        deviceId:
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/Id'
+            - type: 'null'
+        title:
+          type: string
+          example: 你已获得「家里车位」的使用权限
+        content:
+          type: string
+          example: 张先生邀请你使用该车位，有效期至 2026-12-31 18:00。
+        read:
+          type: boolean
+          example: false
+        createdAt:
+          $ref: './common.yaml#/components/schemas/DateTime'
