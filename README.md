@@ -1,5 +1,7 @@
 # SmartParking · 智能车位道闸 网络版
 
+[![CI](https://github.com/acelucasxx/SmartParking/actions/workflows/ci.yml/badge.svg)](https://github.com/acelucasxx/SmartParking/actions/workflows/ci.yml)
+
 业主通过微信小程序远程控制自己车位上的道闸，并可按有效期授权给家人。
 
 ## 文档
