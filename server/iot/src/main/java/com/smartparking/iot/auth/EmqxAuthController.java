@@ -41,20 +41,14 @@ public class EmqxAuthController {
     private final DeviceDirectory directory;
     private final DeviceCredentials credentials;
     private final MqttProperties mqtt;
-    private final byte[] hookToken;
+    private final EmqxHookToken hookToken;
 
     public EmqxAuthController(
-            DeviceDirectory directory,
-            DeviceCredentials credentials,
-            MqttProperties mqtt,
-            DeviceAuthProperties authProperties) {
-        if (authProperties.hookToken() == null || authProperties.hookToken().isBlank()) {
-            throw new IllegalStateException("缺少 smartparking.mqtt.auth.hook-token");
-        }
+            DeviceDirectory directory, DeviceCredentials credentials, MqttProperties mqtt, EmqxHookToken hookToken) {
         this.directory = directory;
         this.credentials = credentials;
         this.mqtt = mqtt;
-        this.hookToken = authProperties.hookToken().getBytes(StandardCharsets.UTF_8);
+        this.hookToken = hookToken;
     }
 
     /** EMQX 发送的认证请求体 */
@@ -62,8 +56,9 @@ public class EmqxAuthController {
 
     @PostMapping("/internal/emqx/authn")
     public ResponseEntity<Map<String, Object>> authenticate(
-            @RequestHeader(value = "X-Emqx-Token", required = false) String token, @RequestBody AuthRequest request) {
-        if (token == null || !MessageDigest.isEqual(hookToken, token.getBytes(StandardCharsets.UTF_8))) {
+            @RequestHeader(value = EmqxHookToken.HEADER, required = false) String token,
+            @RequestBody AuthRequest request) {
+        if (!hookToken.matches(token)) {
             log.warn("拒绝 EMQX 认证回调：X-Emqx-Token 不正确");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }

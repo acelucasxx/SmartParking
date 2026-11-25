@@ -54,7 +54,7 @@ EMQX 控制台：<http://localhost:18083>。可以在“WebSocket 客户端”�
 
 ## 说明
 
-- **EMQX 连接认证回调业务服务**：每次连接都调用本机 8080 的 `/internal/emqx/authn`，所以**先启动业务服务，再启动设备或模拟器**；业务服务刚启动时 EMQX 可能拒绝第一次连接，客户端会自动重试。设备必须先在库里登记才能连上，规则见 [docs/iot/device-access.md](../../docs/iot/device-access.md)。配置在 `emqx/emqx.conf`（认证）与 `emqx/acl.conf`（主题权限）。TLS 在 INF-06 中接入，测试与生产环境只开放 8883。
+- **EMQX 连接认证回调业务服务**：每次连接都调用本机 8080 的 `/internal/emqx/authn`，所以**先启动业务服务，再启动设备或模拟器**；业务服务刚启动时 EMQX 可能拒绝第一次连接，客户端会自动重试。设备必须先在库里登记才能连上，规则见 [docs/iot/device-access.md](../../docs/iot/device-access.md)。配置在 `emqx/emqx.conf`（认证、连接事件规则）与 `emqx/acl.conf`（主题权限）。TLS 在 INF-06 中接入，测试与生产环境只开放 8883。
 - 用模拟器联调前，先把模拟器的 IMEI 写进 `device` 表，例如：
 
   ```bash

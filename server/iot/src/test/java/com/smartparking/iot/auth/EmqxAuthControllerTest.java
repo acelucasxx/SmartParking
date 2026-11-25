@@ -22,8 +22,8 @@ class EmqxAuthControllerTest {
             imei -> IMEI.equals(imei) ? Optional.of(new RegisteredDevice(1, IMEI, 1)) : Optional.empty();
     private final MqttProperties mqtt =
             new MqttProperties(true, "tcp://x", null, "smartparking-server", "cloud-pass", null, null, null);
-    private final EmqxAuthController controller =
-            new EmqxAuthController(directory, credentials, mqtt, new DeviceAuthProperties("hook-token", KEY));
+    private final EmqxAuthController controller = new EmqxAuthController(
+            directory, credentials, mqtt, new EmqxHookToken(new DeviceAuthProperties("hook-token", KEY)));
 
     private AuthRequest device(String imei, String clientId, String password) {
         return new AuthRequest(clientId, imei, password);
@@ -82,8 +82,9 @@ class EmqxAuthControllerTest {
 
     @Test
     void missingHookTokenFailsStartup() {
-        assertThatThrownBy(
-                        () -> new EmqxAuthController(directory, credentials, mqtt, new DeviceAuthProperties("", KEY)))
+        assertThatThrownBy(() -> new EmqxHookToken(new DeviceAuthProperties("", KEY)))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new EmqxHookToken(new DeviceAuthProperties(null, KEY)))
                 .isInstanceOf(IllegalStateException.class);
     }
 }
