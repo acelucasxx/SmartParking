@@ -1,0 +1,13 @@
+# npx @redocly/cli lint 的配置；在 docs/api 目录下执行
+apis:
+  app:
+    root: openapi-app.yaml
+  admin:
+    root: openapi-admin.yaml
+extends:
+  - recommended
+rules:
+  # 信封为 {code, message, data}，成功示例由 schema 中的 example 生成
+  operation-4xx-response: error
+  info-license: off
+  no-server-example.com: off

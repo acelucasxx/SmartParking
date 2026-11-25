@@ -9,6 +9,7 @@
 - 产品需求：[docs/prd/PRD.md](docs/prd/PRD.md)
 - 开发计划：[docs/plan/dev-plan.md](docs/plan/dev-plan.md)
 - 数据库约定：[docs/db/conventions.md](docs/db/conventions.md)
+- 接口契约与错误码：[docs/api/README.md](docs/api/README.md)
 - 协作约定：[CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## 工程
@@ -20,7 +21,7 @@
 | `miniapp/` | 微信小程序 | 原生小程序、TypeScript |
 | `deploy/local/` | 本地开发依赖 | Docker Compose：MySQL 8.4、Redis 7.4、EMQX 5.8 |
 
-后续补充：`tools/dtu-sim/`（IOT-03）、`docs/api/`（INF-05）。
+后续补充：`tools/dtu-sim/`（IOT-03）。
 
 ## 本地运行
 
