@@ -1,0 +1,80 @@
+# 本地开发环境：MySQL 8、Redis 7、EMQX 5。
+# 用法见同目录 README.md。所有账号密码只用于本机开发，禁止用于任何共享环境。
+name: smartparking-local
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: sp-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_dev_only}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-smartparking}
+      MYSQL_USER: ${MYSQL_USER:-smartparking}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-smartparking_dev_only}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+08:00
+      - --max-connections=500
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: sp-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-redis_dev_only}"]
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:-redis_dev_only}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  emqx:
+    image: emqx/emqx:5.8.6
+    container_name: sp-emqx
+    restart: unless-stopped
+    environment:
+      EMQX_NODE__NAME: emqx@127.0.0.1
+      EMQX_DASHBOARD__DEFAULT_USERNAME: admin
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:-emqx_dev_only}
+      # 本地不启用设备认证，任何客户端都可连接。一机一密认证在 IOT-04 中接入，
+      # 测试与生产环境必须开启认证并只开放 8883（TLS）。
+      EMQX_AUTHORIZATION__NO_MATCH: allow
+      EMQX_MQTT__MAX_PACKET_SIZE: 1MB
+    ports:
+      - "${EMQX_MQTT_PORT:-1883}:1883"
+      - "${EMQX_WS_PORT:-8083}:8083"
+      - "${EMQX_DASHBOARD_PORT:-18083}:18083"
+    volumes:
+      - emqx-data:/opt/emqx/data
+      - emqx-log:/opt/emqx/log
+    healthcheck:
+      test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+volumes:
+  mysql-data:
+  redis-data:
+  emqx-data:
+  emqx-log:

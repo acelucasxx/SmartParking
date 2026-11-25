@@ -15,10 +15,17 @@
 | `server/` | 业务服务（模块化单体） | Java 17、Spring Boot 3.5、Gradle |
 | `admin-web/` | 管理后台 | Vue 3、Element Plus、Vite |
 | `miniapp/` | 微信小程序 | 原生小程序、TypeScript |
+| `deploy/local/` | 本地开发依赖 | Docker Compose：MySQL 8.4、Redis 7.4、EMQX 5.8 |
 
-后续补充：`deploy/`（INF-02）、`tools/dtu-sim/`（IOT-03）、`docs/api/`（INF-05）。
+后续补充：`tools/dtu-sim/`（IOT-03）、`docs/api/`（INF-05）。
 
 ## 本地运行
+
+**依赖服务**（需要 Docker），详见 [deploy/local/README.md](deploy/local/README.md)
+
+```bash
+cd deploy/local && docker compose up -d
+```
 
 **server**（需要 JDK 17+）
 
