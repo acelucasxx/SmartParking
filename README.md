@@ -10,6 +10,7 @@
 - 开发计划：[docs/plan/dev-plan.md](docs/plan/dev-plan.md)
 - 数据库约定：[docs/db/conventions.md](docs/db/conventions.md)
 - 接口契约与错误码：[docs/api/README.md](docs/api/README.md)
+- DTU 模拟器：[tools/dtu-sim/README.md](tools/dtu-sim/README.md)
 - WorkBuddy 代码复用评估：[docs/plan/workbuddy-reuse.md](docs/plan/workbuddy-reuse.md)
 - 协作约定：[CONTRIBUTING.md](CONTRIBUTING.md)
 

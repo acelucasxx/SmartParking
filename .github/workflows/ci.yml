@@ -42,7 +42,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: server-test-reports
-          path: server/*/build/reports/tests/
+          path: |
+            server/*/build/reports/tests/
+            tools/dtu-sim/build/reports/tests/
           retention-days: 7
 
       - name: Upload jar
