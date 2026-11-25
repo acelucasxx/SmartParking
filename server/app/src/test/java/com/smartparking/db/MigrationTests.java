@@ -15,7 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 /** 校验 Flyway 迁移在 MySQL 8.4 上完整执行，且关键约束按 PRD 生效。 */
-@SpringBootTest
+@SpringBootTest(properties = "smartparking.mqtt.enabled=false")
 @Import(TestcontainersConfiguration.class)
 @Transactional
 class MigrationTests {

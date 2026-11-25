@@ -26,6 +26,16 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:mysql")
+    // MQTT 接入集成测试：用模拟器冒充设备，EMQX 加载 deploy/local/emqx 下的真实配置
+    testImplementation(project(":dtu-sim"))
+    testImplementation("org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5")
+}
+
+val deployDir = rootDir.resolve("../deploy/local").normalize()
+
+tasks.test {
+    inputs.dir(deployDir.resolve("emqx")).withPropertyName("emqxConfig")
+    systemProperty("smartparking.deployDir", deployDir.absolutePath)
 }
 
 tasks.bootJar {

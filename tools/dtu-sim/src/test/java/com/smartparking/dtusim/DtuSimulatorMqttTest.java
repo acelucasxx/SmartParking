@@ -55,7 +55,7 @@ class DtuSimulatorMqttTest {
         });
 
         var config = new SimulatorConfig(
-                broker(), Imeis.sequence("86000000000000", 3), TRAVEL_MS, true, false, true, 10, 500, null, null);
+                broker(), Imeis.sequence("86000000000000", 3), TRAVEL_MS, true, false, true, 10, 500, null);
         simulator = new DtuSimulator(config);
         simulator.start();
         await().atMost(Duration.ofSeconds(10))
@@ -153,8 +153,8 @@ class DtuSimulatorMqttTest {
     @Test
     void persistentSessionDeliversCommandSentWhileOffline() throws Exception {
         // 复现 IOT-01 评估 3.7 的风险：DTU 用持久会话时，离线期间下发的指令会在重连后被执行
-        var config = new SimulatorConfig(
-                broker(), List.of("490154203237518"), TRAVEL_MS, true, false, false, 10, 500, null, null);
+        var config =
+                new SimulatorConfig(broker(), List.of("490154203237518"), TRAVEL_MS, true, false, false, 10, 500, null);
         try (var scheduler = new ExecutorScheduler(1);
                 var device = new DtuDevice("490154203237518", config, scheduler)) {
             device.connect();

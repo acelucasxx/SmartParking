@@ -1,5 +1,6 @@
 package com.smartparking.dtusim;
 
+import com.smartparking.iot.auth.DeviceCredentials;
 import com.smartparking.iot.codec.Hex;
 import com.smartparking.iot.codec.ProtocolException;
 import com.smartparking.iot.codec.Rs485Codec;
@@ -45,10 +46,11 @@ public final class DtuDevice implements AutoCloseable {
         options.setCleanSession(config.cleanSession());
         options.setKeepAliveInterval(config.keepAliveSeconds());
         options.setAutomaticReconnect(false);
-        if (config.username() != null) {
-            options.setUserName(config.username());
+        if (config.secretKey() != null) {
+            // 一机一密：用户名为 IMEI，密码由平台密钥派生（与云端 DeviceCredentials 同一算法）
+            options.setUserName(imei);
             options.setPassword(
-                    config.password() == null ? new char[0] : config.password().toCharArray());
+                    new DeviceCredentials(config.secretKey()).passwordFor(imei).toCharArray());
         }
         client.setCallback(new MqttCallback() {
             @Override

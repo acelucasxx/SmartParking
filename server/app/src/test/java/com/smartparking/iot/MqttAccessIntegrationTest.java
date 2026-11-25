@@ -1,0 +1,250 @@
+package com.smartparking.iot;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
+
+import com.smartparking.TestcontainersConfiguration;
+import com.smartparking.dtusim.DtuDevice;
+import com.smartparking.dtusim.ExecutorScheduler;
+import com.smartparking.dtusim.SimulatorConfig;
+import com.smartparking.iot.auth.DeviceCredentials;
+import com.smartparking.iot.codec.GateStatus;
+import com.smartparking.iot.codec.Rs485Codec;
+import com.smartparking.iot.codec.UplinkFrame;
+import com.smartparking.iot.mqtt.DeviceUplinkEvent;
+import com.smartparking.iot.mqtt.MqttGateway;
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.event.EventListener;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.Testcontainers;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.images.builder.Transferable;
+
+/**
+ * MQTT 接入端到端：EMQX 加载 deploy/local/emqx 的真实配置，认证回调本服务，设备由 DTU 模拟器冒充。
+ *
+ * <p>覆盖：一机一密认证、未登记 IMEI 拒连、主题 ACL、上行解码发布事件、下行消息过期（离线不排队）。
+ */
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
+@Import({TestcontainersConfiguration.class, MqttAccessIntegrationTest.Listener.class})
+class MqttAccessIntegrationTest {
+
+    private static final String KEY = "device_secret_key_dev_only_0123456789";
+    private static final String REGISTERED = "860000000000009";
+    private static final String REGISTERED_2 = "860000000000017";
+    private static final String UNREGISTERED = "860000000000025";
+
+    /** EMQX 回调认证需要固定端口，在容器启动前选好 */
+    private static final int SERVER_PORT = freePort();
+
+    private static final GenericContainer<?> EMQX = emqx();
+
+    static {
+        EMQX.start();
+    }
+
+    @DynamicPropertySource
+    static void properties(DynamicPropertyRegistry registry) {
+        registry.add("server.port", () -> SERVER_PORT);
+        registry.add("smartparking.mqtt.url", MqttAccessIntegrationTest::broker);
+        // 缩短过期时间，便于验证离线不排队
+        registry.add("smartparking.mqtt.downlink-expiry", () -> "2s");
+        registry.add("smartparking.mqtt.reconnect-max-delay", () -> "2s");
+    }
+
+    @Autowired
+    private MqttGateway gateway;
+
+    @Autowired
+    private JdbcClient jdbc;
+
+    @Autowired
+    private Listener listener;
+
+    private ExecutorScheduler scheduler;
+
+    @BeforeEach
+    void setUp() {
+        scheduler = new ExecutorScheduler(2);
+        for (String imei : List.of(REGISTERED, REGISTERED_2)) {
+            jdbc.sql(
+                            """
+                    INSERT IGNORE INTO device (sn, imei, model, batch_no, activate_code_hash)
+                    VALUES (?, ?, 'SP-G1', 'IT', 'x')""")
+                    .params("SN" + imei, imei)
+                    .update();
+        }
+        await().atMost(Duration.ofSeconds(30)).until(gateway::isConnected);
+        listener.events.clear();
+    }
+
+    @AfterEach
+    void tearDown() {
+        scheduler.close();
+    }
+
+    static String broker() {
+        return "tcp://" + EMQX.getHost() + ":" + EMQX.getMappedPort(1883);
+    }
+
+    private static SimulatorConfig config(boolean cleanSession, String secretKey) {
+        return new SimulatorConfig(broker(), List.of(), 300, true, false, cleanSession, 10, 500, secretKey);
+    }
+
+    private DtuDevice device(String imei, boolean cleanSession) throws MqttException {
+        return new DtuDevice(imei, config(cleanSession, KEY), scheduler);
+    }
+
+    /** 取下一条该设备的上行；期间收到的其他设备的上行记入 {@code others} */
+    private UplinkFrame nextUplink(String imei, List<DeviceUplinkEvent> others) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + 5_000;
+        while (System.currentTimeMillis() < deadline) {
+            DeviceUplinkEvent e = listener.events.poll(100, TimeUnit.MILLISECONDS);
+            if (e == null) {
+                continue;
+            }
+            if (e.imei().equals(imei)) {
+                return e.frame();
+            }
+            others.add(e);
+        }
+        return null;
+    }
+
+    private UplinkFrame nextUplink(String imei) throws InterruptedException {
+        return nextUplink(imei, new ArrayList<>());
+    }
+
+    @Test
+    void registeredDeviceConnectsAndRoundTripsThroughServer() throws Exception {
+        try (var device = device(REGISTERED, true)) {
+            device.connect();
+            gateway.send(REGISTERED, Rs485Codec.encodeQuery());
+            var frame = nextUplink(REGISTERED);
+            assertThat(frame).isInstanceOf(UplinkFrame.Status.class);
+            assertThat(((UplinkFrame.Status) frame).status()).isEqualTo(GateStatus.CLOSED);
+
+            gateway.send(REGISTERED, Rs485Codec.encodeOpen());
+            assertThat(nextUplink(REGISTERED)).as("回显帧照常上报").isInstanceOf(UplinkFrame.Echo.class);
+        }
+    }
+
+    @Test
+    void wrongPasswordIsRejected() throws Exception {
+        try (var device = new DtuDevice(REGISTERED, config(true, KEY.replace('0', '1')), scheduler)) {
+            assertThatThrownBy(device::connect).isInstanceOf(MqttException.class);
+        }
+    }
+
+    @Test
+    void unregisteredImeiCannotConnect() throws Exception {
+        try (var device = device(UNREGISTERED, true)) {
+            assertThatThrownBy(device::connect).isInstanceOf(MqttException.class);
+        }
+    }
+
+    @Test
+    void anonymousClientIsRejected() throws Exception {
+        try (var device = new DtuDevice(REGISTERED, config(true, null), scheduler)) {
+            assertThatThrownBy(device::connect).isInstanceOf(MqttException.class);
+        }
+    }
+
+    @Test
+    void deviceCannotPublishAsAnotherImei() throws Exception {
+        // 设备 1 用自己的合法身份连上，但往设备 2 的上行主题发帧：ACL 拒绝，云端收不到
+        var password = new DeviceCredentials(KEY).passwordFor(REGISTERED);
+        var client = new MqttClient(broker(), "dtu-" + REGISTERED, new MemoryPersistence());
+        var options = new MqttConnectOptions();
+        options.setUserName(REGISTERED);
+        options.setPassword(password.toCharArray());
+        client.connect(options);
+        try {
+            client.publish("parking/up/" + REGISTERED_2, Rs485Codec.encodeStatus(1, 0x09, 0x16, 0x00), 1, false);
+            client.publish("parking/up/" + REGISTERED, Rs485Codec.encodeStatus(1, 0x0C, 0x16, 0x00), 1, false);
+            var others = new ArrayList<DeviceUplinkEvent>();
+            assertThat(nextUplink(REGISTERED, others)).as("自己的主题正常").isNotNull();
+            assertThat(others).as("冒用他人主题的帧被 ACL 拦截").isEmpty();
+            assertThat(listener.events).noneMatch(e -> e.imei().equals(REGISTERED_2));
+        } finally {
+            client.disconnectForcibly(0, 1000, false);
+            client.close();
+        }
+    }
+
+    @Test
+    void downlinkExpiresWhileDeviceIsOffline() throws Exception {
+        // 持久会话下，若不设过期时间，离线期间的指令会在重连后执行（见 DtuSimulatorMqttTest）；
+        // 云端带 2 秒过期，设备 4 秒后才回来，指令已被丢弃
+        try (var device = device(REGISTERED_2, false)) {
+            device.connect();
+            device.dropFor(4);
+            Thread.sleep(500);
+            gateway.send(REGISTERED_2, Rs485Codec.encodeOpen());
+            await().atMost(Duration.ofSeconds(15)).until(device::isConnected);
+            Thread.sleep(1_000);
+            assertThat(device.board().status()).isEqualTo(GateStatus.CLOSED);
+        }
+    }
+
+    @TestConfiguration(proxyBeanMethods = false)
+    static class Listener {
+
+        final BlockingQueue<DeviceUplinkEvent> events = new LinkedBlockingQueue<>();
+
+        @EventListener
+        void on(DeviceUplinkEvent event) {
+            events.add(event);
+        }
+    }
+
+    private static GenericContainer<?> emqx() {
+        Testcontainers.exposeHostPorts(SERVER_PORT);
+        Path dir = Path.of(System.getProperty("smartparking.deployDir", "../../deploy/local"))
+                .resolve("emqx");
+        try {
+            String conf = Files.readString(dir.resolve("emqx.conf"))
+                    .replace("host.docker.internal:8080", "host.testcontainers.internal:" + SERVER_PORT);
+            return new GenericContainer<>("emqx/emqx:5.8.6")
+                    .withExposedPorts(1883)
+                    .withCopyToContainer(Transferable.of(conf), "/opt/emqx/etc/emqx.conf")
+                    .withCopyToContainer(
+                            Transferable.of(Files.readString(dir.resolve("acl.conf"))), "/opt/emqx/etc/acl.conf")
+                    .waitingFor(Wait.forLogMessage(".*is running now.*", 1).withStartupTimeout(Duration.ofMinutes(2)));
+        } catch (IOException e) {
+            throw new IllegalStateException("读取 EMQX 配置失败：" + dir, e);
+        }
+    }
+
+    private static int freePort() {
+        try (var socket = new ServerSocket(0)) {
+            return socket.getLocalPort();
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+}

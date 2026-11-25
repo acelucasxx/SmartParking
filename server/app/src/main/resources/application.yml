@@ -9,6 +9,16 @@ spring:
     validate-migration-naming: true
     clean-disabled: true
 
+smartparking:
+  mqtt:
+    # 设备接入（PRD 8.1）。生产必须通过环境变量提供 url、password 与 auth 下的两项密钥
+    enabled: true
+    username: smartparking-server
+    # 设备离线时 broker 最多暂存下行这么久，过期丢弃，不在设备上线后补执行（PRD 5.3④）
+    downlink-expiry: 15s
+    keep-alive: 30s
+    reconnect-max-delay: 30s
+
 server:
   port: 8080
   shutdown: graceful
