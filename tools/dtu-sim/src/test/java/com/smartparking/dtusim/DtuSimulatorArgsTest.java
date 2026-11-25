@@ -16,6 +16,18 @@ class DtuSimulatorArgsTest {
         assertThat(config.echo()).isTrue();
         assertThat(config.cleanSession()).isFalse();
         assertThat(config.activeReport()).isFalse();
+        assertThat(config.secretKey()).isEqualTo(DtuSimulator.LOCAL_SECRET_KEY);
+    }
+
+    @Test
+    void secretKeyFromEnvOrArgsOrAnonymous() {
+        String key = "k".repeat(32);
+        assertThat(DtuSimulator.parse(new String[0], null, key).secretKey()).isEqualTo(key);
+        assertThat(DtuSimulator.parse(new String[] {"--secret-key", key + "x"}, null, key)
+                        .secretKey())
+                .isEqualTo(key + "x");
+        assertThat(DtuSimulator.parse(new String[] {"--anonymous"}, null, key).secretKey())
+                .isNull();
     }
 
     @Test

@@ -29,7 +29,11 @@ public final class DtuSimulator implements AutoCloseable {
               --active-report         状态变化时主动上报
               --clean-session         使用干净会话（默认持久会话）
               --keep-alive <s>        MQTT 心跳，默认 60
-              --username <u> --password <p>   MQTT 认证（IOT-04 接入一机一密后使用）""";
+              --secret-key <key>      一机一密平台密钥，默认与本地开发环境一致，也可用环境变量 DEVICE_SECRET_KEY
+              --anonymous             不带用户名密码连接（broker 未开启认证时）""";
+
+    /** 与 server 的 application-local.yml 一致，只用于本机开发 */
+    static final String LOCAL_SECRET_KEY = "device_secret_key_dev_only_0123456789";
 
     private final ExecutorScheduler scheduler;
     private final List<DtuDevice> devices;
@@ -67,7 +71,7 @@ public final class DtuSimulator implements AutoCloseable {
     public static void main(String[] args) throws Exception {
         SimulatorConfig config;
         try {
-            config = parse(args, System.getenv("BROKER"));
+            config = parse(args, System.getenv("BROKER"), System.getenv("DEVICE_SECRET_KEY"));
         } catch (IllegalArgumentException e) {
             System.err.println(e.getMessage());
             System.err.println(USAGE);
@@ -89,6 +93,10 @@ public final class DtuSimulator implements AutoCloseable {
     }
 
     static SimulatorConfig parse(String[] args, String brokerEnv) {
+        return parse(args, brokerEnv, null);
+    }
+
+    static SimulatorConfig parse(String[] args, String brokerEnv, String secretKeyEnv) {
         String broker = brokerEnv == null || brokerEnv.isBlank() ? "tcp://127.0.0.1:1883" : brokerEnv;
         int count = 1;
         String prefix = "86000000000000";
@@ -98,8 +106,7 @@ public final class DtuSimulator implements AutoCloseable {
         boolean activeReport = false;
         boolean cleanSession = false;
         int keepAlive = 60;
-        String username = null;
-        String password = null;
+        String secretKey = secretKeyEnv == null || secretKeyEnv.isBlank() ? LOCAL_SECRET_KEY : secretKeyEnv;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--broker" -> broker = value(args, ++i);
@@ -111,8 +118,8 @@ public final class DtuSimulator implements AutoCloseable {
                 case "--active-report" -> activeReport = true;
                 case "--clean-session" -> cleanSession = true;
                 case "--keep-alive" -> keepAlive = Integer.parseInt(value(args, ++i));
-                case "--username" -> username = value(args, ++i);
-                case "--password" -> password = value(args, ++i);
+                case "--secret-key" -> secretKey = value(args, ++i);
+                case "--anonymous" -> secretKey = null;
                 case "--help", "-h" -> throw new IllegalArgumentException("");
                 default -> throw new IllegalArgumentException("未知参数：" + args[i]);
             }
@@ -129,7 +136,7 @@ public final class DtuSimulator implements AutoCloseable {
             }
         }
         return new SimulatorConfig(
-                broker, imeis, travelMs, echo, activeReport, cleanSession, keepAlive, 5000, username, password);
+                broker, imeis, travelMs, echo, activeReport, cleanSession, keepAlive, 5000, secretKey);
     }
 
     private static String value(String[] args, int i) {

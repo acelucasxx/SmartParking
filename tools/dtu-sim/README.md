@@ -6,7 +6,7 @@
 
 ## 运行
 
-先按 [deploy/local/README.md](../../deploy/local/README.md) 启动本地 EMQX，然后在 `server/` 目录执行：
+先按 [deploy/local/README.md](../../deploy/local/README.md) 启动本地环境。本地 EMQX 连接时会回调业务服务认证，所以要**先启动业务服务，并把模拟器的 IMEI 登记到 `device` 表**，否则连接会被拒绝。然后在 `server/` 目录执行：
 
 ```bash
 ./gradlew :dtu-sim:run --args="--count 3 --travel-ms 500"
@@ -25,7 +25,8 @@
 | `--active-report` | 关闭 | 状态变化时主动上报状态帧 |
 | `--clean-session` | 持久会话 | 使用干净会话 |
 | `--keep-alive <s>` | 60 | MQTT 心跳 |
-| `--username` / `--password` | — | MQTT 认证，IOT-04 接入一机一密后使用 |
+| `--secret-key <key>` | 本地开发密钥 | 一机一密平台密钥：用户名为 IMEI，密码由密钥派生，与服务端 `DeviceCredentials` 同一算法；也可用环境变量 `DEVICE_SECRET_KEY` |
+| `--anonymous` | — | 不带用户名密码，用于未开启认证的 broker |
 
 收发帧明细在 DEBUG 级别，用环境变量 `DTU_SIM_LOG=DEBUG` 打开。
 
@@ -74,7 +75,7 @@
 - DTU 心跳 / 注册包：格式待硬件确认（PRD 12.1 第 11 项）。
 - 粘包、拆帧：取决于 DTU 串口打包参数（PRD 12.1 第 6 项），确认后再补。
 - 电量与信号：协议中暂无对应字段。
-- TLS 与一机一密：随 IOT-04 补充。
+- TLS：随 INF-06 补充。
 
 ## 测试
 

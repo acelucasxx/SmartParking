@@ -55,17 +55,21 @@ services:
       EMQX_NODE__NAME: emqx@127.0.0.1
       EMQX_DASHBOARD__DEFAULT_USERNAME: admin
       EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:-emqx_dev_only}
-      # 本地不启用设备认证，任何客户端都可连接。一机一密认证在 IOT-04 中接入，
-      # 测试与生产环境必须开启认证并只开放 8883（TLS）。
-      EMQX_AUTHORIZATION__NO_MATCH: allow
+      # 认证与主题权限见 ./emqx：连接时回调本机业务服务（8080）校验一机一密，
+      # 业务服务未启动时设备与模拟器都连不上。生产环境只开放 8883（TLS）。
       EMQX_MQTT__MAX_PACKET_SIZE: 1MB
     ports:
       - "${EMQX_MQTT_PORT:-1883}:1883"
       - "${EMQX_WS_PORT:-8083}:8083"
       - "${EMQX_DASHBOARD_PORT:-18083}:18083"
+    extra_hosts:
+      # Linux 的 Docker 没有内置 host.docker.internal，这里显式映射到宿主机
+      - "host.docker.internal:host-gateway"
     volumes:
       - emqx-data:/opt/emqx/data
       - emqx-log:/opt/emqx/log
+      - ./emqx/emqx.conf:/opt/emqx/etc/emqx.conf:ro
+      - ./emqx/acl.conf:/opt/emqx/etc/acl.conf:ro
     healthcheck:
       test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
       interval: 5s
