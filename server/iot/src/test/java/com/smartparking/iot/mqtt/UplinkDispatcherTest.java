@@ -2,8 +2,8 @@ package com.smartparking.iot.mqtt;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.smartparking.iot.DeviceDirectory;
 import com.smartparking.iot.DeviceDirectory.RegisteredDevice;
+import com.smartparking.iot.Devices;
 import com.smartparking.iot.codec.GateStatus;
 import com.smartparking.iot.codec.Hex;
 import com.smartparking.iot.codec.UplinkFrame;
@@ -12,8 +12,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -23,11 +21,7 @@ class UplinkDispatcherTest {
     private static final String IMEI = "860000000000009";
     private static final Instant NOW = Instant.parse("2026-11-26T02:00:00Z");
 
-    private final AtomicInteger lookups = new AtomicInteger();
-    private final DeviceDirectory directory = imei -> {
-        lookups.incrementAndGet();
-        return IMEI.equals(imei) ? Optional.of(new RegisteredDevice(42, IMEI, 1)) : Optional.empty();
-    };
+    private final Devices directory = Devices.only(new RegisteredDevice(42, IMEI, 1));
     private final List<Object> events = new ArrayList<>();
     private final UplinkDispatcher dispatcher =
             new UplinkDispatcher(directory, events::add, Clock.fixed(NOW, ZoneId.of("Asia/Shanghai")));
@@ -73,7 +67,7 @@ class UplinkDispatcherTest {
     void malformedTopicIsDroppedWithoutLookup(String topic) {
         assertThat(dispatcher.dispatch(topic, Hex.parse("FD 00 01 09 16 11 FD FA")))
                 .isFalse();
-        assertThat(lookups).hasValue(0);
+        assertThat(directory.lookups).hasValue(0);
         assertThat(events).isEmpty();
     }
 

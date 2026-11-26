@@ -2,13 +2,12 @@ package com.smartparking.iot.presence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.smartparking.iot.DeviceDirectory.RegisteredDevice;
+import com.smartparking.iot.Devices;
 import com.smartparking.iot.auth.DeviceAuthProperties;
 import com.smartparking.iot.auth.EmqxHookToken;
 import com.smartparking.iot.presence.EmqxEventController.EventRequest;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 
@@ -17,8 +16,7 @@ class EmqxEventControllerTest {
     private final List<Object> published = new ArrayList<>();
     private final EmqxEventController controller = new EmqxEventController(
             new EmqxHookToken(new DeviceAuthProperties("hook-token", null)),
-            new ConnectionEventService(
-                    imei -> Optional.of(new RegisteredDevice(1, imei, 1)), (id, s, at) -> true, published::add));
+            new ConnectionEventService(Devices.any(), (id, s, at) -> true, published::add));
 
     private static EventRequest connected(Long timestamp) {
         return new EventRequest("client.connected", "dtu-860000000000009", timestamp, null);

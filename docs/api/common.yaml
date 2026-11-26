@@ -301,10 +301,11 @@ components:
 
     CommandResultCode:
       type: string
-      enum: [ALREADY_IN_TARGET, MOTOR_FAULT, OBSTRUCTED, INFRARED, INTERRUPTED, TIMEOUT]
+      enum: [ALREADY_IN_TARGET, MOTOR_FAULT, OBSTRUCTED, INFRARED, INTERRUPTED, TIMEOUT, OFFLINE]
       description: |
         ALREADY_IN_TARGET 已在目标状态未下发（视为成功）/ MOTOR_FAULT 电机故障 / OBSTRUCTED 遇阻 /
-        INFRARED 红外防砸 / INTERRUPTED 中间停止 / TIMEOUT 15 秒未到位
+        INFRARED 红外防砸 / INTERRUPTED 中间停止 / TIMEOUT 15 秒未到位 /
+        OFFLINE 指令已记录但下发失败（云端与设备链路中断），该次提交返回 20003
 
     TriggerSource:
       type: string

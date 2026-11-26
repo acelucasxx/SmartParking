@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: 智能车位道闸 · 小程序接口
-  version: 1.0.0
+  version: 1.0.1
   description: |
     小程序端接口契约 v1。依据 PRD V1.1 第 3、5、6 章。
 

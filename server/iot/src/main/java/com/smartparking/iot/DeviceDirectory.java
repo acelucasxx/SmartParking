@@ -9,6 +9,8 @@ public interface DeviceDirectory {
 
     Optional<RegisteredDevice> findByImei(String imei);
 
+    Optional<RegisteredDevice> findById(long deviceId);
+
     /**
      * @param rs485Address RS485 帧地址位，一期固定为 1
      */
