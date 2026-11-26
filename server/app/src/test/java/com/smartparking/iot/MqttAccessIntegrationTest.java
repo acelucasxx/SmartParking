@@ -50,7 +50,7 @@ import org.testcontainers.images.builder.Transferable;
  * MQTT 接入端到端：EMQX 加载 deploy/local/emqx 的真实配置，认证回调本服务，设备由 DTU 模拟器冒充。
  *
  * <p>覆盖：一机一密认证、未登记 IMEI 拒连、主题 ACL、上行解码发布事件、下行消息过期（离线不排队）、
- * 连接 / 断开事件经规则引擎写入 device_runtime（IOT-05）。
+ * 连接 / 断开事件经规则引擎写入 device_runtime（IOT-05）、上线后主动查询状态（IOT-10）。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
 @Import({TestcontainersConfiguration.class, MqttAccessIntegrationTest.Listener.class})
@@ -299,6 +299,27 @@ class MqttAccessIntegrationTest {
             await().atMost(Duration.ofSeconds(20))
                     .until(() -> "CONNECTED".equals(conn(REGISTERED).event()));
             assertThat(conn(REGISTERED).at()).isAfter(down.at());
+        }
+    }
+
+    @Test
+    void connectingDeviceIsQueriedWithoutAnyRequest() throws Exception {
+        // PRD 8.7：上线即同步状态。EMQX 在连接建立时就发事件，此刻设备可能尚未订阅下行主题，
+        // 平台延迟 connect-delay 再查；这里验证经真实 EMQX 的时序下查询不会丢
+        try (var device = device(REGISTERED, true)) {
+            device.board().trigger(GateStatus.OPENED, 0x18);
+            await().atMost(Duration.ofSeconds(3)).until(() -> device.board().status() == GateStatus.OPENED);
+            listener.events.clear();
+
+            device.connect();
+
+            long deadline = System.currentTimeMillis() + 15_000;
+            UplinkFrame frame = null;
+            while (frame == null && System.currentTimeMillis() < deadline) {
+                frame = nextUplink(REGISTERED);
+            }
+            assertThat(frame).as("连接后平台主动查询，设备回状态帧").isInstanceOf(UplinkFrame.Status.class);
+            assertThat(((UplinkFrame.Status) frame).status()).isEqualTo(GateStatus.OPENED);
         }
     }
 

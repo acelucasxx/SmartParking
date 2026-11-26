@@ -27,16 +27,16 @@ import org.springframework.context.event.EventListener;
 @TestConfiguration(proxyBeanMethods = false)
 public class InMemoryDeviceLink {
 
-    final Map<String, GateBoard> boards = new ConcurrentHashMap<>();
-    final List<String> sent = new CopyOnWriteArrayList<>();
+    public final Map<String, GateBoard> boards = new ConcurrentHashMap<>();
+    public final List<String> sent = new CopyOnWriteArrayList<>();
     final List<CommandFinishedEvent> finished = new CopyOnWriteArrayList<>();
     final ExecutorService uplinkThread = Executors.newSingleThreadExecutor();
-    volatile boolean connected = true;
+    public volatile boolean connected = true;
     volatile boolean failNextOpenOrClose;
     DownlinkSender sender;
     private ObjectProvider<UplinkDispatcher> dispatcher;
 
-    GateBoard attach(String imei, long travelMs, ExecutorScheduler scheduler) {
+    public GateBoard attach(String imei, long travelMs, ExecutorScheduler scheduler) {
         var board = new GateBoard(
                 1,
                 travelMs,
