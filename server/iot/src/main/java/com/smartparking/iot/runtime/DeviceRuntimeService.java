@@ -8,6 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 
 /**
@@ -47,7 +49,12 @@ public class DeviceRuntimeService {
         return loaded;
     }
 
+    /**
+     * 先于其他订阅方执行（指令执行器、查询等待方等）：它们据此帧做出判定后，调用方立刻读到的运行态必须已是这一帧。
+     * 否则指令已判失败（如电机故障），紧接着的下一次提交仍读到旧状态而被下发。
+     */
     @EventListener
+    @Order(Ordered.HIGHEST_PRECEDENCE)
     public void onUplink(DeviceUplinkEvent event) {
         if (event.frame() instanceof UplinkFrame.Status status) {
             var result = repository.applyStatus(event.deviceId(), status, event.receivedAt());
@@ -73,6 +80,7 @@ public class DeviceRuntimeService {
 
     /** 连接事件已由 presence 写入 MySQL，这里判定在线状态并同步缓存 */
     @EventListener
+    @Order(Ordered.HIGHEST_PRECEDENCE)
     public void onConnection(DeviceConnectionEvent event) {
         refresh(event.deviceId());
     }

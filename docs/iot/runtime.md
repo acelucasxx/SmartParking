@@ -71,3 +71,5 @@ DeviceConnectionEvent（IOT-05）┘                      └─▶ device_event
 | `OnlineStateChangedEvent` | `online_state` 变化写库后 | 离线超 24 小时告警（BIZ-07）、在线率监控（INF-08） |
 
 指令状态机（IOT-07）需要每一帧状态，直接订阅 `DeviceUplinkEvent`，判断新鲜度用 `DeviceRuntime.statusRefreshedAt`。
+
+`DeviceRuntimeService` 对 `DeviceUplinkEvent`、`DeviceConnectionEvent` 的监听排在最前（`@Order(HIGHEST_PRECEDENCE)`）：其他订阅方据某一帧做出判定时，运行态已写入这一帧。否则可能出现指令已判“电机故障”失败、紧接着的提交仍读到故障前的状态而照常下发（IOT-10 CI 中出现过，已用延迟注入复现）。
