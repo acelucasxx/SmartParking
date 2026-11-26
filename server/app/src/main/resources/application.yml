@@ -27,6 +27,12 @@ smartparking:
     # 在线状态扫描间隔（PRD 8.5）：沉默导致的休眠 / 离线靠扫描发现
     sweep-interval: 60s
 
+  status-sync:
+    # 状态同步（PRD 8.7）：定时查询的检查间隔；查询周期本身取后台参数 status_poll.interval_minutes（默认 5 分钟）
+    tick: 30s
+    # 连接事件后延迟多久查询，等设备订阅好下行主题
+    connect-delay: 2s
+
   device-event:
     partitions:
       # 每天 03:10 与启动时维护 device_event 月度分区（PRD 9：保留 ≥ 180 天）
