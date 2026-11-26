@@ -33,6 +33,17 @@ smartparking:
     # 连接事件后延迟多久查询，等设备订阅好下行主题
     connect-delay: 2s
 
+  user:
+    # 小程序会话有效期（BIZ-01）；到期后前端重新 wx.login 静默登录。生产必须通过环境变量提供 data-key（手机号加密主密钥）
+    session-ttl: 7d
+
+  wechat:
+    # real 调用微信接口，需要 app-id 与 app-secret（EXT-10）；mock 只用于本地开发与测试
+    mode: real
+    base-url: https://api.weixin.qq.com
+    connect-timeout: 3s
+    read-timeout: 5s
+
   device-event:
     partitions:
       # 每天 03:10 与启动时维护 device_event 月度分区（PRD 9：保留 ≥ 180 天）
