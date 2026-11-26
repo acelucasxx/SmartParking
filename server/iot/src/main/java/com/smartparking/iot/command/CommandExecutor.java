@@ -110,6 +110,29 @@ public class CommandExecutor implements DisposableBean {
         log.info("指令 {} 已下发：设备 {} {}", commandId, device.imei(), action);
     }
 
+    /**
+     * 接管一条已下发但本实例未跟踪的指令（服务重启后恢复），按原截止时刻继续轮询。不知道下发前的状态，基线为空。
+     *
+     * @return 是否开始跟踪；该设备已有跟踪中的指令时返回 false
+     */
+    boolean resume(long commandId, RegisteredDevice device, CommandAction action, Instant issuedAt) {
+        var a = new Active(commandId, device, action, Baseline.NONE, issuedAt.plus(timeout()));
+        if (active.putIfAbsent(device.deviceId(), a) != null) {
+            return false;
+        }
+        synchronized (a) {
+            long ms = POLL_INTERVAL.toMillis();
+            a.poll = scheduler.scheduleAtFixedRate(() -> tick(a), 0, ms, TimeUnit.MILLISECONDS);
+        }
+        log.info("恢复跟踪指令 {}：设备 {} {}", commandId, device.imei(), action);
+        return true;
+    }
+
+    /** 本实例是否正在跟踪该指令 */
+    public boolean isTracking(long commandId) {
+        return active.values().stream().anyMatch(a -> a.commandId == commandId);
+    }
+
     /** 当前跟踪中的指令数，便于监控与测试 */
     public int activeCount() {
         return active.size();

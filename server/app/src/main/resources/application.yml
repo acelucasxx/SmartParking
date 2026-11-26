@@ -19,6 +19,10 @@ smartparking:
     keep-alive: 30s
     reconnect-max-delay: 30s
 
+  command:
+    # 指令对账间隔（PRD 8.4⑤）
+    reconcile-interval: 15s
+
   device-event:
     partitions:
       # 每天 03:10 与启动时维护 device_event 月度分区（PRD 9：保留 ≥ 180 天）

@@ -10,12 +10,9 @@ import com.smartparking.common.error.ErrorCode;
 import com.smartparking.dtusim.ExecutorScheduler;
 import com.smartparking.dtusim.Fault;
 import com.smartparking.dtusim.GateBoard;
-import com.smartparking.iot.codec.GateCommand;
 import com.smartparking.iot.codec.GateStatus;
 import com.smartparking.iot.codec.Hex;
 import com.smartparking.iot.codec.Rs485Codec;
-import com.smartparking.iot.mqtt.DeviceLinkUnavailableException;
-import com.smartparking.iot.mqtt.DownlinkSender;
 import com.smartparking.iot.mqtt.UplinkDispatcher;
 import com.smartparking.iot.runtime.DeviceRuntimeService;
 import com.smartparking.iot.runtime.RuntimeCache;
@@ -23,22 +20,13 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
-import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 /**
@@ -49,9 +37,10 @@ import org.springframework.jdbc.core.simple.JdbcClient;
         properties = {
             "smartparking.mqtt.enabled=false",
             "smartparking.device-event.partitions.enabled=false",
-            "smartparking.settings.cache-ttl=0s"
+            "smartparking.settings.cache-ttl=0s",
+            "smartparking.command.reconcile-interval=1h"
         })
-@Import({TestcontainersConfiguration.class, CommandStateMachineIntegrationTest.Bridge.class})
+@Import({TestcontainersConfiguration.class, InMemoryDeviceLink.class})
 class CommandStateMachineIntegrationTest {
 
     private static final long TRAVEL_MS = 400;
@@ -73,7 +62,7 @@ class CommandStateMachineIntegrationTest {
     private JdbcClient jdbc;
 
     @Autowired
-    private Bridge bridge;
+    private InMemoryDeviceLink bridge;
 
     private ExecutorScheduler scheduler;
     private long deviceId;
@@ -320,67 +309,5 @@ class CommandStateMachineIntegrationTest {
         assertThatThrownBy(() -> commands.submit(deviceId, CommandAction.OPEN, "short", OWNER))
                 .isInstanceOfSatisfying(
                         BizException.class, e -> assertThat(e.errorCode()).isEqualTo(ErrorCode.BAD_REQUEST));
-    }
-
-    /** 把下行交给内存中的闸板，上行异步送回分发器 */
-    @TestConfiguration(proxyBeanMethods = false)
-    static class Bridge {
-
-        final Map<String, GateBoard> boards = new ConcurrentHashMap<>();
-        final List<String> sent = new CopyOnWriteArrayList<>();
-        final List<CommandFinishedEvent> finished = new CopyOnWriteArrayList<>();
-        final ExecutorService uplinkThread = Executors.newSingleThreadExecutor();
-        volatile boolean connected = true;
-        volatile boolean failNextOpenOrClose;
-        DownlinkSender sender;
-        private ObjectProvider<UplinkDispatcher> dispatcher;
-
-        GateBoard attach(String imei, long travelMs, ExecutorScheduler scheduler) {
-            var board = new GateBoard(
-                    1,
-                    travelMs,
-                    scheduler,
-                    bytes -> uplinkThread.execute(() -> dispatcher.getObject().dispatch("parking/up/" + imei, bytes)));
-            boards.put(imei, board);
-            return board;
-        }
-
-        @Bean
-        @Primary
-        DownlinkSender inMemorySender(ObjectProvider<UplinkDispatcher> dispatcher) {
-            this.dispatcher = dispatcher;
-            this.sender = new DownlinkSender() {
-                @Override
-                public void send(String imei, byte[] frame) {
-                    if (!connected) {
-                        throw new DeviceLinkUnavailableException("测试：链路断开");
-                    }
-                    var decoded = Rs485Codec.decodeDownlink(frame);
-                    boolean motion = decoded.command()
-                            .filter(c -> c != GateCommand.QUERY_STATUS)
-                            .isPresent();
-                    if (motion && failNextOpenOrClose) {
-                        failNextOpenOrClose = false;
-                        throw new DeviceLinkUnavailableException("测试：发布失败");
-                    }
-                    sent.add(imei + " " + Hex.format(frame));
-                    GateBoard board = boards.get(imei);
-                    if (board != null) {
-                        board.handle(decoded);
-                    }
-                }
-
-                @Override
-                public boolean isConnected() {
-                    return connected;
-                }
-            };
-            return sender;
-        }
-
-        @EventListener
-        void on(CommandFinishedEvent event) {
-            finished.add(event);
-        }
     }
 }
