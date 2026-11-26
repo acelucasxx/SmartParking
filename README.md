@@ -14,6 +14,7 @@
 - 设备运行态与状态流水：[docs/iot/runtime.md](docs/iot/runtime.md)
 - 指令状态机：[docs/iot/command.md](docs/iot/command.md)
 - 状态同步：[docs/iot/status-sync.md](docs/iot/status-sync.md)
+- 真机联调手册：[docs/iot/bench.md](docs/iot/bench.md)（工具 [tools/dtu-bench](tools/dtu-bench/README.md)）
 - DTU 模拟器：[tools/dtu-sim/README.md](tools/dtu-sim/README.md)
 - WorkBuddy 代码复用评估：[docs/plan/workbuddy-reuse.md](docs/plan/workbuddy-reuse.md)
 - 协作约定：[CONTRIBUTING.md](CONTRIBUTING.md)
@@ -26,8 +27,8 @@
 | `admin-web/` | 管理后台 | Vue 3、Element Plus、Vite |
 | `miniapp/` | 微信小程序 | 原生小程序、TypeScript |
 | `deploy/local/` | 本地开发依赖 | Docker Compose：MySQL 8.4、Redis 7.4、EMQX 5.8 |
-
-后续补充：`tools/dtu-sim/`（IOT-03）。
+| `tools/dtu-sim/` | DTU 模拟器（设备侧） | Java 17，作为 `server` 的子工程构建 |
+| `tools/dtu-bench/` | 真机联调工具（云端侧） | Java 17，作为 `server` 的子工程构建 |
 
 ## 本地运行
 

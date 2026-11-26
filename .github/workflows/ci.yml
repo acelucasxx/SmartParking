@@ -45,6 +45,7 @@ jobs:
           path: |
             server/*/build/reports/tests/
             tools/dtu-sim/build/reports/tests/
+            tools/dtu-bench/build/reports/tests/
           retention-days: 7
 
       - name: Upload jar
