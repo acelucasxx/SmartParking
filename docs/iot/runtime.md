@@ -1,6 +1,6 @@
 # 设备运行态与状态流水
 
-对应 PRD 8.5、8.7、9，实现于 IOT-06。代码在 `server/iot` 的 `runtime` 包。
+对应 PRD 8.5、8.7、9，实现于 IOT-06（运行态、流水）与 IOT-09（在线判定）。代码在 `server/iot` 的 `runtime` 包。
 
 ## 数据流
 
@@ -21,7 +21,30 @@ DeviceConnectionEvent（IOT-05）┘                      └─▶ device_event
 - 同一设备的状态帧在行锁（`SELECT … FOR UPDATE`）内比较并写入；早于已记录 `status_refreshed_at` 的帧丢弃。
 - 执行中每 300 ms 的查询回包大多与上一帧相同，只刷新时间，不会刷满事件表。
 - `approx`：触发方式不是平台指令（原因码 `16`）的变化记 1。闸板不主动上报时，这类动作只能在下一次查询时发现，时间是“发现时间”，界面显示“约”（PRD 8.7）。硬件确认主动上报后在 IOT-13 调整。
-- `online_state` 由在线判定（IOT-09）维护，这里不改。
+- 每次写入后紧接着做一次在线判定（见下一节），再写缓存。
+
+## 在线判定
+
+规则见 PRD 8.5，实现为纯函数 `OnlinePolicy`，自上而下命中即止：
+
+| 优先级 | 结论 | 判据 |
+| --- | --- | --- |
+| 1 | `OFFLINE` | 从未上行，或 `last_seen_at` 距今超过 `online.offline_hours`（默认 24 小时） |
+| 2 | `SLEEP` | `last_conn_event = DISCONNECTED`，或 `last_seen_at` 距今超过 `online.sleep_minutes`（默认 10 分钟） |
+| 3 | `ONLINE` | 以上都不满足 |
+
+窗口取后台系统设置，修改后在设置缓存时间（30 秒）内生效。`OnlineStateService` 在三个时机判定并写入 `online_state`：
+
+| 时机 | 入口 | 说明 |
+| --- | --- | --- |
+| 收到上行或连接事件 | `DeviceRuntimeService` 写完运行态后调用 `reevaluate` | 上线、断开即时生效 |
+| 每 60 秒扫描 | `sweep`，间隔 `smartparking.online.sweep-interval` | 沉默导致的休眠 / 离线没有事件，靠扫描发现；SQL 按同一规则挑出“已存状态与当前判定不一致”的行，按设备 ID 分页（每页 500，单轮最多 40 页） |
+| 控制下发前 | `CommandService` 调用 `judge` | 以当前时刻判定缓存快照；与已存状态不同时读库重判并落库，不必等扫描 |
+
+- **只写有变化的**：结论与已存状态相同时不写库。
+- **并发安全**：写入条件是“修订号仍为判定时读到的值”，期间行被改过就重读重判（最多 3 次）。多实例同时扫描、事件与扫描同时到达时，不会写回过期结论，每次变化只发布一次 `OnlineStateChangedEvent`。
+- 扫描是兜底：EMQX 事件丢失（业务服务长时间不可用）时，按 `last_seen_at` 仍能在 60 秒内把设备转入休眠 / 离线。
+- 断开后收到的上行（EMQX 事件延迟到达）不会让设备回到在线：最近一次连接事件仍为断开，直到下一次连接事件。
 
 ## Redis 热数据
 
@@ -45,5 +68,6 @@ DeviceConnectionEvent（IOT-05）┘                      └─▶ device_event
 | 事件 | 时机 | 订阅方 |
 | --- | --- | --- |
 | `DeviceStateChangedEvent` | 写入一条 `device_event` 后 | 告警（BIZ 线）、非 App 动作入记录（IOT-13） |
+| `OnlineStateChangedEvent` | `online_state` 变化写库后 | 离线超 24 小时告警（BIZ-07）、在线率监控（INF-08） |
 
 指令状态机（IOT-07）需要每一帧状态，直接订阅 `DeviceUplinkEvent`，判断新鲜度用 `DeviceRuntime.statusRefreshedAt`。

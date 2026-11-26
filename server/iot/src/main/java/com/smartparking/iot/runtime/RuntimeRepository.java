@@ -10,6 +10,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -104,6 +105,50 @@ public class RuntimeRepository {
                         .param("id", deviceId)
                         .update()
                 > 0;
+    }
+
+    /**
+     * 写入在线判定结论，以修订号为条件：判定所读的行已被别处修改时不写，由调用方重读重判。
+     *
+     * @return 是否写入
+     */
+    public boolean updateOnlineState(long deviceId, OnlineState state, long expectedRev) {
+        return jdbc.sql(
+                                "UPDATE device_runtime SET online_state = :state, rev = rev + 1 WHERE device_id = :id AND rev = :rev")
+                        .param("state", state.name())
+                        .param("id", deviceId)
+                        .param("rev", expectedRev)
+                        .update()
+                > 0;
+    }
+
+    /**
+     * 已存在线状态与按给定时刻判定的结果不一致的运行态（PRD 8.5，与 {@link OnlinePolicy} 同一规则），按设备 ID 升序分页。
+     * 只用于挑出候选，最终结论仍由 {@link OnlinePolicy} 对最新行重判。
+     *
+     * @param sleepBefore 最近上行早于此刻即休眠
+     * @param offlineBefore 最近上行早于此刻即离线
+     * @param afterDeviceId 上一页最后一台设备的 ID，首页传 0
+     */
+    public List<DeviceRuntime> findOnlineStateMismatch(
+            Instant sleepBefore, Instant offlineBefore, long afterDeviceId, int limit) {
+        return jdbc.sql(
+                        "SELECT " + COLUMNS
+                                + """
+                         FROM device_runtime
+                        WHERE device_id > :after
+                          AND online_state <> CASE
+                                WHEN last_seen_at IS NULL OR last_seen_at < :offline THEN 'OFFLINE'
+                                WHEN last_conn_event = 'DISCONNECTED' OR last_seen_at < :sleep THEN 'SLEEP'
+                                ELSE 'ONLINE' END
+                        ORDER BY device_id
+                        LIMIT :limit""")
+                .param("after", afterDeviceId)
+                .param("offline", DbTime.toDb(offlineBefore))
+                .param("sleep", DbTime.toDb(sleepBefore))
+                .param("limit", limit)
+                .query(RuntimeRepository::map)
+                .list();
     }
 
     /**

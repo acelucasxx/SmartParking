@@ -23,6 +23,10 @@ smartparking:
     # 指令对账间隔（PRD 8.4⑤）
     reconcile-interval: 15s
 
+  online:
+    # 在线状态扫描间隔（PRD 8.5）：沉默导致的休眠 / 离线靠扫描发现
+    sweep-interval: 60s
+
   device-event:
     partitions:
       # 每天 03:10 与启动时维护 device_event 月度分区（PRD 9：保留 ≥ 180 天）

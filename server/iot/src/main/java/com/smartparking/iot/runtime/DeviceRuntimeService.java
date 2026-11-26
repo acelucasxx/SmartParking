@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 /**
  * 运行态维护：上行帧与连接事件 → {@code device_runtime}（事实来源）→ Redis（热数据），状态变化写 {@code device_event}。
  *
- * <p>读取 {@link #find} 先读 Redis，未命中或 Redis 不可用时读 MySQL 并回填。
+ * <p>每次写入后由 {@link OnlineStateService} 判定在线状态。读取 {@link #find} 先读 Redis，未命中或 Redis 不可用时读 MySQL 并回填。
  */
 @Service
 public class DeviceRuntimeService {
@@ -22,11 +22,17 @@ public class DeviceRuntimeService {
 
     private final RuntimeRepository repository;
     private final RuntimeCache cache;
+    private final OnlineStateService onlineStates;
     private final ApplicationEventPublisher events;
 
-    public DeviceRuntimeService(RuntimeRepository repository, RuntimeCache cache, ApplicationEventPublisher events) {
+    public DeviceRuntimeService(
+            RuntimeRepository repository,
+            RuntimeCache cache,
+            OnlineStateService onlineStates,
+            ApplicationEventPublisher events) {
         this.repository = repository;
         this.cache = cache;
+        this.onlineStates = onlineStates;
         this.events = events;
     }
 
@@ -65,14 +71,15 @@ public class DeviceRuntimeService {
         }
     }
 
-    /** 连接事件已由 presence 写入 MySQL，这里只同步缓存 */
+    /** 连接事件已由 presence 写入 MySQL，这里判定在线状态并同步缓存 */
     @EventListener
     public void onConnection(DeviceConnectionEvent event) {
         refresh(event.deviceId());
     }
 
+    /** 运行态刚被写入：先做在线判定（PRD 8.5 时机①），再把最新行同步到缓存 */
     private void refresh(long deviceId) {
-        repository.find(deviceId).ifPresentOrElse(cache::put, () -> cache.evict(deviceId));
+        onlineStates.reevaluate(deviceId).ifPresentOrElse(cache::put, () -> cache.evict(deviceId));
     }
 
     private static String occupancy(UplinkFrame.Status status) {

@@ -18,7 +18,7 @@
 | 8 | 已在目标状态 | 不下发，记一条 `SUCCESS` / `ALREADY_IN_TARGET` |
 | 9 | 其余 | 落库 `PENDING`（含下行帧）→ 发布 → `SENT`，交给执行器 |
 
-在线判定用 `OnlinePolicy`（PRD 8.5 的优先级），阈值读系统设置 `online.sleep_minutes`、`online.offline_hours`。
+在线判定用 `OnlineStateService.judge`（PRD 8.5 的优先级，阈值读系统设置 `online.sleep_minutes`、`online.offline_hours`）；结论与已存状态不同时顺带落库，见 [runtime.md](runtime.md#在线判定)。
 
 **设备级串行**由 `control_command` 的唯一键 `uk_command_inflight` 保证：同一设备同时最多一条 `PENDING` / `SENT` / `EXECUTING` 指令，跨实例同样有效。并发提交时，同一幂等键的第二个请求返回第一条指令，不同幂等键的返回 `COMMAND_IN_PROGRESS`。
 
