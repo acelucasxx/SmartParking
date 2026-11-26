@@ -13,7 +13,7 @@ import java.time.Instant;
  *   <li>在线：以上都不满足。
  * </ol>
  *
- * <p>纯函数。控制下发前（IOT-07）直接调用；收到上行 / 连接事件与 60 秒扫描两个时机由 IOT-09 接入并落库。
+ * <p>纯函数。三个判定时机与落库见 {@link OnlineStateService}。
  */
 public final class OnlinePolicy {
 

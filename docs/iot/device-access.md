@@ -55,7 +55,7 @@ EMQX 规则 `device_conn_events` 筛出客户端 ID 为 `dtu-{15 位数字}` 的
 - **乱序与重试**：HTTP 动作可能并发、乱序或重试，只有时刻晚于已记录 `last_conn_at` 的事件生效，重复投递不会重复发布事件。
 - **接管**：同一 IMEI 重新连接时旧连接被接管。EMQX 5.8 实测旧连接的断开事件时间戳早于新连接，按时刻即被忽略；断开原因为 `takenover` / `discarded` 时也直接忽略，作为兜底。
 - **只认已登记设备**：未登记 IMEI 的事件只记日志。
-- 生效的事件发布 `DeviceConnectionEvent`，供在线判定（IOT-09）与上线后立即查询（IOT-10，PRD 8.7）使用。在线状态 `online_state` 由 IOT-09 统一判定，这里不改。
+- 生效的事件发布 `DeviceConnectionEvent`，供上线后立即查询（IOT-10，PRD 8.7）使用；写入后随即做在线判定（IOT-09，见 [runtime.md](runtime.md#在线判定)）。
 - 业务服务晚于 EMQX 启动时，EMQX 每 5 秒检查一次连接器，期间的事件在缓冲区等待（最长 45 秒）后补发；更久的中断会丢事件，由在线判定的 60 秒扫描按 `last_seen_at` 兜底。
 
 ## 离线不排队

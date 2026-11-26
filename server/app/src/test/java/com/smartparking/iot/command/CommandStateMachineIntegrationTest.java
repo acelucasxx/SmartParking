@@ -119,6 +119,13 @@ class CommandStateMachineIntegrationTest {
                 .singleRow();
     }
 
+    private String onlineState() {
+        return jdbc.sql("SELECT online_state FROM device_runtime WHERE device_id = ?")
+                .param(deviceId)
+                .query(String.class)
+                .single();
+    }
+
     private List<String> sentCommands() {
         return bridge.sent.stream()
                 .filter(s -> s.startsWith(imei))
@@ -254,6 +261,8 @@ class CommandStateMachineIntegrationTest {
         assertThatThrownBy(() -> commands.submit(deviceId, CommandAction.OPEN, key(), OWNER))
                 .isInstanceOfSatisfying(
                         BizException.class, e -> assertThat(e.errorCode()).isEqualTo(ErrorCode.DEVICE_SLEEPING));
+        // 下发前的判定顺带落库（PRD 8.5 时机③），不必等 60 秒扫描
+        assertThat(onlineState()).isEqualTo("SLEEP");
 
         jdbc.sql("UPDATE device_runtime SET last_seen_at = NOW(3) - INTERVAL 25 HOUR WHERE device_id = ?")
                 .param(deviceId)
@@ -262,6 +271,7 @@ class CommandStateMachineIntegrationTest {
         assertThatThrownBy(() -> commands.submit(deviceId, CommandAction.OPEN, key(), OWNER))
                 .isInstanceOfSatisfying(
                         BizException.class, e -> assertThat(e.errorCode()).isEqualTo(ErrorCode.DEVICE_OFFLINE));
+        assertThat(onlineState()).isEqualTo("OFFLINE");
 
         assertThat(sentCommands()).isEmpty();
         assertThat(jdbc.sql("SELECT COUNT(*) FROM control_command WHERE device_id = ?")

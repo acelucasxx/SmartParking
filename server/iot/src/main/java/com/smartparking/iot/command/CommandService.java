@@ -1,6 +1,5 @@
 package com.smartparking.iot.command;
 
-import com.smartparking.common.config.SystemSettings;
 import com.smartparking.common.error.BizException;
 import com.smartparking.common.error.ErrorCode;
 import com.smartparking.iot.DeviceDirectory;
@@ -13,8 +12,8 @@ import com.smartparking.iot.mqtt.DeviceLinkUnavailableException;
 import com.smartparking.iot.mqtt.DownlinkSender;
 import com.smartparking.iot.runtime.DeviceRuntime;
 import com.smartparking.iot.runtime.DeviceRuntimeService;
-import com.smartparking.iot.runtime.OnlinePolicy;
 import com.smartparking.iot.runtime.OnlineState;
+import com.smartparking.iot.runtime.OnlineStateService;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -54,7 +53,7 @@ public class CommandService {
     private final StatusProbe probe;
     private final DeviceRuntimeService runtime;
     private final DownlinkSender sender;
-    private final SystemSettings settings;
+    private final OnlineStateService onlineStates;
     private final ApplicationEventPublisher events;
     private final Clock clock = Clock.systemUTC();
 
@@ -65,7 +64,7 @@ public class CommandService {
             StatusProbe probe,
             DeviceRuntimeService runtime,
             DownlinkSender sender,
-            SystemSettings settings,
+            OnlineStateService onlineStates,
             ApplicationEventPublisher events) {
         this.directory = directory;
         this.repository = repository;
@@ -73,7 +72,7 @@ public class CommandService {
         this.probe = probe;
         this.runtime = runtime;
         this.sender = sender;
-        this.settings = settings;
+        this.onlineStates = onlineStates;
         this.events = events;
     }
 
@@ -97,7 +96,7 @@ public class CommandService {
 
         Instant now = clock.instant();
         DeviceRuntime state = runtime.find(deviceId).orElse(null);
-        OnlineState online = OnlinePolicy.evaluate(state, now, sleepAfter(), offlineAfter());
+        OnlineState online = onlineStates.judge(state);
         if (online == OnlineState.OFFLINE || !sender.isConnected()) {
             throw new BizException(ErrorCode.DEVICE_OFFLINE);
         }
@@ -207,13 +206,5 @@ public class CommandService {
                 row.issuedAt(),
                 row.finishedAt(),
                 row.durationMs());
-    }
-
-    private Duration sleepAfter() {
-        return Duration.ofMinutes(settings.getInt(SystemSettings.Keys.ONLINE_SLEEP_MINUTES, 10));
-    }
-
-    private Duration offlineAfter() {
-        return Duration.ofHours(settings.getInt(SystemSettings.Keys.ONLINE_OFFLINE_HOURS, 24));
     }
 }
