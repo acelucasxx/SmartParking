@@ -11,6 +11,7 @@ include(
     "app",
     "common",
     "iot",
+    "user",
     "device",
     "ownership",
     "member",

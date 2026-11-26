@@ -5,6 +5,7 @@ plugins {
 dependencies {
     implementation(project(":common"))
     implementation(project(":iot"))
+    implementation(project(":user"))
     implementation(project(":device"))
     implementation(project(":ownership"))
     implementation(project(":member"))
