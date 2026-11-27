@@ -20,6 +20,7 @@
 - 远程控制接口：[docs/biz/remote-control.md](docs/biz/remote-control.md)
 - 设备入库与后台守卫：[docs/biz/device-import.md](docs/biz/device-import.md)
 - 扫码绑定：[docs/biz/bind.md](docs/biz/bind.md)
+- 我的车位与设备详情：[docs/biz/devices.md](docs/biz/devices.md)
 - DTU 模拟器：[tools/dtu-sim/README.md](tools/dtu-sim/README.md)
 - WorkBuddy 代码复用评估：[docs/plan/workbuddy-reuse.md](docs/plan/workbuddy-reuse.md)
 - 协作约定：[CONTRIBUTING.md](CONTRIBUTING.md)

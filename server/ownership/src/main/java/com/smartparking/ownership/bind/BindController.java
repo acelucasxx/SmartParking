@@ -2,6 +2,7 @@ package com.smartparking.ownership.bind;
 
 import com.smartparking.common.web.ApiResponse;
 import com.smartparking.common.web.AppPrincipal;
+import com.smartparking.control.devices.DeviceViews;
 import com.smartparking.ownership.bind.BindService.Preview;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -21,9 +22,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class BindController {
 
     private final BindService binds;
-    private final DeviceCards cards;
+    private final DeviceViews cards;
 
-    public BindController(BindService binds, DeviceCards cards) {
+    public BindController(BindService binds, DeviceViews cards) {
         this.binds = binds;
         this.cards = cards;
     }
@@ -36,8 +37,8 @@ public class BindController {
     }
 
     @PostMapping
-    public ApiResponse<DeviceCards.DeviceCard> bind(AppPrincipal user, @Valid @RequestBody BindRequest request) {
+    public ApiResponse<DeviceViews.DeviceCard> bind(AppPrincipal user, @Valid @RequestBody BindRequest request) {
         long deviceId = binds.bind(user.userId(), request.sn(), request.activateCode());
-        return ApiResponse.ok(cards.ownerCard(deviceId));
+        return ApiResponse.ok(cards.card(user.userId(), deviceId));
     }
 }

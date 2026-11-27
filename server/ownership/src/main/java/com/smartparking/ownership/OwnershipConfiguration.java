@@ -4,7 +4,6 @@ import com.smartparking.device.registry.ActivateCodes;
 import com.smartparking.iot.sync.StatusSyncService;
 import com.smartparking.ownership.bind.BindAttempts;
 import com.smartparking.ownership.bind.BindService;
-import com.smartparking.ownership.bind.DeviceCards;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -17,11 +16,6 @@ public class OwnershipConfiguration {
     @Bean
     BindAttempts bindAttempts(StringRedisTemplate redis) {
         return new BindAttempts(redis);
-    }
-
-    @Bean
-    DeviceCards deviceCards(JdbcClient jdbc) {
-        return new DeviceCards(jdbc);
     }
 
     @Bean
