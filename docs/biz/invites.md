@@ -1,6 +1,6 @@
 # 邀请家人
 
-对应 BIZ-11（PRD 5.5）。代码在 `server/member` 的 `invite` 包，接口见契约 [openapi-app.yaml](../api/openapi-app.yaml) 的 member 分组。成员列表、修改有效期、撤销、退出与到期任务在 BIZ-12。
+对应 BIZ-11（PRD 5.5）。代码在 `server/member` 的 `invite` 包，接口见契约 [openapi-app.yaml](../api/openapi-app.yaml) 的 member 分组。成员列表、修改有效期、撤销、退出与到期任务见 [members.md](members.md)。
 
 | 接口 | 权限级别 | 说明 |
 | --- | --- | --- |
@@ -66,7 +66,7 @@
 
 - 通过后写入 `device_member`：起止按有效期规则计算；备注、授权人、来源邀请从邀请带过来。邀请置为已接受。
 - 同一人在同一设备只能有一条生效授权（表上的唯一约束兜底，并发时返回 30015）。
-- 旧授权已过 `validTo` 但到期任务还没处理时，先把它置为已过期，不挡住新邀请。
+- 旧授权已过 `validTo` 但到期任务（[members.md](members.md)）还没处理时，先把它置为已过期，不挡住新邀请。
 - 事务提交后发布 `MemberGrantedEvent`，供站内消息（BIZ-15）通知主人。
 - 返回被授权人视角的车位卡片；自定义有效期尚未开始时也返回，但车位列表要到开始时刻才显示该设备。
 

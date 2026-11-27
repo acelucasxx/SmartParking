@@ -71,7 +71,7 @@ public record Period(Type type, Integer durationDays, Instant validFrom, Instant
     }
 
     /** 从库里还原 */
-    static Period stored(String type, Integer durationMinutes, Instant from, Instant to) {
+    public static Period stored(String type, Integer durationMinutes, Instant from, Instant to) {
         Type t = Type.valueOf(type);
         Integer days = durationMinutes == null
                 ? null
@@ -80,7 +80,7 @@ public record Period(Type type, Integer durationDays, Instant validFrom, Instant
     }
 
     /** 接受时落到 {@code device_member} 的起止；CUSTOM 的起早于当前时仍按原值（立即生效） */
-    Instant[] resolve(Instant acceptedAt) {
+    public Instant[] resolve(Instant acceptedAt) {
         return switch (type) {
             case PERMANENT -> new Instant[] {acceptedAt, null};
             case RELATIVE -> new Instant[] {acceptedAt, acceptedAt.plus(Duration.ofDays(durationDays))};
