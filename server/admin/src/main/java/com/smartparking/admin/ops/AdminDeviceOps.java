@@ -123,7 +123,12 @@ public class AdminDeviceOps {
                 resetActivateCode,
                 reason);
         events.publishEvent(new DeviceUnboundEvent(
-                deviceId, released.formerOwner(), released.revokedMembers(), OwnershipRelease.Type.FORCE_UNBIND, now));
+                deviceId,
+                released.formerOwner(),
+                released.revokedMembers(),
+                OwnershipRelease.Type.FORCE_UNBIND,
+                released.deviceName(),
+                now));
         return newCode;
     }
 
