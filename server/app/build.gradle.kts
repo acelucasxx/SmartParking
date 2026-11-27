@@ -33,6 +33,8 @@ dependencies {
     // MQTT 接入集成测试：用模拟器冒充设备，EMQX 加载 deploy/local/emqx 下的真实配置
     testImplementation(project(":dtu-sim"))
     testImplementation("org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5")
+    // 设备入库集成测试：读回下载的 xlsx
+    testImplementation("org.dhatim:fastexcel-reader:0.18.4")
 }
 
 val deployDir = rootDir.resolve("../deploy/local").normalize()

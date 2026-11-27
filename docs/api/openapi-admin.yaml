@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: 智能车位道闸 · 管理后台接口
-  version: 1.0.1
+  version: 1.0.2
   description: |
     管理后台接口契约 v1。依据 PRD V1.1 第 3、5、7 章。
 
@@ -593,7 +593,7 @@ paths:
                       description: DTU 换 4G 模块（新 IMEI）/ BOARD 换主板（新 MAC）
                     newValue:
                       type: string
-                      example: '861234567890128'
+                      example: '861234567890127'
       responses:
         '200':
           description: OK
@@ -1389,7 +1389,7 @@ components:
           type: string
           pattern: '^\d{15}$'
           description: 15 位，服务端另做 Luhn 校验
-          example: '861234567890128'
+          example: '861234567890127'
         bleMac:
           type: [string, 'null']
           pattern: '^([0-9A-F]{2}:){5}[0-9A-F]{2}$'
@@ -1416,7 +1416,7 @@ components:
           $ref: './common.yaml#/components/schemas/Sn'
         imei:
           type: string
-          example: '861234567890128'
+          example: '861234567890127'
         bleMac:
           type: [string, 'null']
           example: 'AA:BB:CC:DD:EE:FF'

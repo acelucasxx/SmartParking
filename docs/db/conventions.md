@@ -18,6 +18,8 @@
 | V5__admin | `role`、`admin_user`、`operation_log`、`system_config`、`import_task` |
 | V6__seed | 三个后台角色、系统设置默认参数；**不预置后台账号** |
 | V7__runtime_revision | `device_runtime.rev` 修订号，Redis 热数据据此判断新旧（IOT-06） |
+| V8__status_poll | `device_runtime.last_poll_at`，定时状态查询的节流（IOT-10） |
+| V9__import_print_payload | `import_task.print_payload`，印刷文件导出前暂存加密的激活码，导出即清空（BIZ-03） |
 
 ## 字段
 
@@ -39,6 +41,7 @@
 | 激活码 | 只存哈希 `activate_code_hash`，明文仅出现在一次性印刷文件中 |
 | 手机号 | `phone_cipher` 存应用层加密密文；`phone_hash` 存 HMAC，用于按手机号精确查询 |
 | 邀请 / 转让 token | 只存 SHA-256 `token_hash`，明文只在分享卡片中 |
+| 印刷用激活码 | `import_task.print_payload` 加密暂存，导出印刷文件即清空 |
 | 后台密码 | `password_hash`，算法由 BIZ-08 确定 |
 
 ## 用数据库兜底的业务规则
