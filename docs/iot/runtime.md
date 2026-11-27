@@ -67,7 +67,7 @@ DeviceConnectionEvent（IOT-05）┘                      └─▶ device_event
 
 | 事件 | 时机 | 订阅方 |
 | --- | --- | --- |
-| `DeviceStateChangedEvent` | 写入一条 `device_event` 后 | 告警（BIZ 线）、非 App 动作入记录（IOT-13） |
+| `DeviceStateChangedEvent` | 写入一条 `device_event` 后 | 电机故障、遇阻、红外告警（BIZ-07，[alarms.md](../biz/alarms.md)）、非 App 动作入记录（IOT-13） |
 | `OnlineStateChangedEvent` | `online_state` 变化写库后 | 离线超 24 小时告警（BIZ-07）、在线率监控（INF-08） |
 
 指令状态机（IOT-07）需要每一帧状态，直接订阅 `DeviceUplinkEvent`，判断新鲜度用 `DeviceRuntime.statusRefreshedAt`。
