@@ -17,6 +17,7 @@
 - 真机联调手册：[docs/iot/bench.md](docs/iot/bench.md)（工具 [tools/dtu-bench](tools/dtu-bench/README.md)）
 - 小程序登录与会话：[docs/biz/app-auth.md](docs/biz/app-auth.md)
 - 统一权限判定：[docs/biz/permission.md](docs/biz/permission.md)
+- 远程控制接口：[docs/biz/remote-control.md](docs/biz/remote-control.md)
 - DTU 模拟器：[tools/dtu-sim/README.md](tools/dtu-sim/README.md)
 - WorkBuddy 代码复用评估：[docs/plan/workbuddy-reuse.md](docs/plan/workbuddy-reuse.md)
 - 协作约定：[CONTRIBUTING.md](CONTRIBUTING.md)

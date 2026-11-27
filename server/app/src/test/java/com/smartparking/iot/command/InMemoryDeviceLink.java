@@ -32,8 +32,8 @@ public class InMemoryDeviceLink {
     final List<CommandFinishedEvent> finished = new CopyOnWriteArrayList<>();
     final ExecutorService uplinkThread = Executors.newSingleThreadExecutor();
     public volatile boolean connected = true;
-    volatile boolean failNextOpenOrClose;
-    DownlinkSender sender;
+    public volatile boolean failNextOpenOrClose;
+    public DownlinkSender sender;
     private ObjectProvider<UplinkDispatcher> dispatcher;
 
     public GateBoard attach(String imei, long travelMs, ExecutorScheduler scheduler) {
