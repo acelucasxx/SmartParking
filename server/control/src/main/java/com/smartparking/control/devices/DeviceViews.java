@@ -43,13 +43,17 @@ public class DeviceViews {
     private final boolean bleAvailable;
     private final Clock clock;
 
+    private final OperationRecords records;
+
     public DeviceViews(
             JdbcClient jdbc,
             DeviceAccessService access,
             DeviceRuntimeService runtime,
             OnlineStateService online,
+            OperationRecords records,
             boolean bleAvailable,
             Clock clock) {
+        this.records = records;
         this.jdbc = jdbc;
         this.access = access;
         this.runtime = runtime;
@@ -234,50 +238,9 @@ public class DeviceViews {
                 lastOperation(grant).orElse(null));
     }
 
-    /**
-     * 最近一条本人可见的远程 / 蓝牙操作，可见范围与操作记录一致（主人：自成为主人起全部 + 本人；被授权人：本人）。操作人名称：主人看被授权人时备注优先，
-     * 其余为昵称。遥控器、地感等非 App 动作在 IOT-13 / BIZ-14 接入。
-     */
+    /** 最近一条本人可见的操作记录（与操作记录同一口径：主人还能看到遥控器、地感等非 App 动作） */
     Optional<OperationRecord> lastOperation(DeviceGrant grant) {
-        return jdbc.sql(
-                        """
-                        SELECT c.id, c.issued_at, c.action, c.channel, c.status, c.result_code, c.duration_ms, c.role,
-                               u.nickname, m.remark
-                          FROM control_command c
-                          JOIN device d ON d.id = c.device_id
-                          LEFT JOIN app_user u ON u.id = c.user_id
-                          LEFT JOIN device_member m
-                                 ON m.device_id = c.device_id AND m.user_id = c.user_id AND m.active_flag = 1
-                         WHERE c.device_id = :device AND c.action IN ('OPEN', 'CLOSE') AND c.user_id IS NOT NULL
-                           AND (c.user_id = :user OR (:owner AND (d.owner_since IS NULL OR c.issued_at >= d.owner_since)))
-                         ORDER BY c.issued_at DESC, c.id DESC
-                         LIMIT 1""")
-                .param("device", grant.deviceId())
-                .param("user", grant.userId())
-                .param("owner", grant.isOwner())
-                .query((rs, n) -> {
-                    String status = rs.getString("status");
-                    boolean terminal = status.equals("SUCCESS") || status.equals("FAILED") || status.equals("TIMEOUT");
-                    String remark = rs.getString("remark");
-                    String nickname = rs.getString("nickname");
-                    String name = grant.isOwner() && remark != null && !remark.isBlank()
-                            ? remark
-                            : nickname == null || nickname.isBlank() ? DEFAULT_NICKNAME : nickname;
-                    String role = rs.getString("role");
-                    return new OperationRecord(
-                            "c-" + rs.getLong("id"),
-                            time(rs.getObject("issued_at", LocalDateTime.class)),
-                            false,
-                            "APP",
-                            rs.getString("action"),
-                            name,
-                            role.equals("OWNER") || role.equals("MEMBER") ? role : null,
-                            rs.getString("channel"),
-                            terminal ? status : null,
-                            rs.getString("result_code"),
-                            rs.getObject("duration_ms") == null ? null : rs.getInt("duration_ms"));
-                })
-                .optional();
+        return records.page(grant, null, 1, 1).items().stream().findFirst();
     }
 
     // ------------------------------------------------------------ 修改

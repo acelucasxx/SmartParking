@@ -12,6 +12,11 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 @Configuration(proxyBeanMethods = false)
 public class DevicesConfiguration {
 
+    @Bean
+    OperationRecords operationRecords(JdbcClient jdbc) {
+        return new OperationRecords(jdbc);
+    }
+
     /** 蓝牙入口（PRD 5.4）依赖固件（EXT-03 / EXT-04），上线前为 false，控制页离线时只显示原因 */
     @Bean
     DeviceViews deviceViews(
@@ -19,7 +24,8 @@ public class DevicesConfiguration {
             DeviceAccessService access,
             DeviceRuntimeService runtime,
             OnlineStateService online,
+            OperationRecords records,
             @Value("${smartparking.ble.enabled:false}") boolean bleEnabled) {
-        return new DeviceViews(jdbc, access, runtime, online, bleEnabled, Clock.systemUTC());
+        return new DeviceViews(jdbc, access, runtime, online, records, bleEnabled, Clock.systemUTC());
     }
 }
