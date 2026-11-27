@@ -17,7 +17,7 @@
 
 用于抢绑申诉、二手转卖未转让等场景。未绑定的设备返回 40021。
 
-同一事务内（`OwnershipRelease`，主人解绑 BIZ-13 共用）完成以下操作：
+同一事务内（`OwnershipRelease`，与主人解绑、转让共用，见 [transfer-unbind.md](transfer-unbind.md)）完成以下操作：
 1. 锁定设备行。
 2. 作废全部待接受邀请与有效转让卡片（`VOIDED`）。
 3. 全部生效中的被授权人置为“已撤销”，并记 `ended_at`；已失效的记录不动。
