@@ -79,6 +79,7 @@
 | `CONFIG_UPDATE` | 修改业务参数（明细含修改前后的值） |
 | `DEVICE_CREATE` / `DEVICE_IMPORT` / `DEVICE_PRINT_EXPORT` | 设备入库（印刷文件含激活码明文） |
 | `ALARM_HANDLE` | 告警标记处理 |
+| `COMMAND_EXPORT` | 导出指令流水（明细含起止时间与行数） |
 
 强制解绑、重置激活码、换件、禁用、封禁（BIZ-10 / BIZ-11）上线时同样标注，并用 `AuditTrail.reason` 记录必填原因。
 
