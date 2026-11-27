@@ -25,6 +25,7 @@
 - 扫码绑定：[docs/biz/bind.md](docs/biz/bind.md)
 - 我的车位与设备详情：[docs/biz/devices.md](docs/biz/devices.md)
 - 邀请家人：[docs/biz/invites.md](docs/biz/invites.md)
+- 成员管理：[docs/biz/members.md](docs/biz/members.md)
 - 告警：[docs/biz/alarms.md](docs/biz/alarms.md)
 - DTU 模拟器：[tools/dtu-sim/README.md](tools/dtu-sim/README.md)
 - WorkBuddy 代码复用评估：[docs/plan/workbuddy-reuse.md](docs/plan/workbuddy-reuse.md)

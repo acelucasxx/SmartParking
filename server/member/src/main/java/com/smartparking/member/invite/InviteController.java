@@ -33,7 +33,7 @@ public class InviteController {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record PeriodBody(String type, Integer durationDays, OffsetDateTime validFrom, OffsetDateTime validTo) {
 
-        static PeriodBody of(Period p) {
+        public static PeriodBody of(Period p) {
             return new PeriodBody(p.type().name(), p.durationDays(), time(p.validFrom()), time(p.validTo()));
         }
     }

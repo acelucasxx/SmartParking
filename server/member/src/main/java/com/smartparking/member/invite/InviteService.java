@@ -431,7 +431,8 @@ public class InviteService {
         return Math.max(1, settings.getInt(SystemSettings.Keys.MEMBER_MAX_PER_DEVICE, 5));
     }
 
-    private static String remark(String raw) {
+    /** 备注：去首尾空白，空串为 null，至多 32 个字符（超长 10001） */
+    public static String remark(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
         }
