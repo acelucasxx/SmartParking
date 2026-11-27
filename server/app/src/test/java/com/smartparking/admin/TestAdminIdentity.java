@@ -36,7 +36,8 @@ public class TestAdminIdentity {
                     String[] parts = value.split(":", 3);
                     request.setAttribute(
                             AdminPrincipal.ATTRIBUTE,
-                            new AdminPrincipal(Long.parseLong(parts[0]), parts[2], AdminRole.valueOf(parts[1])));
+                            new AdminPrincipal(
+                                    Long.parseLong(parts[0]), "it-" + parts[0], parts[2], AdminRole.valueOf(parts[1])));
                 }
                 chain.doFilter(request, response);
             }

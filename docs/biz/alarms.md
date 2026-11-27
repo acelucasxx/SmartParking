@@ -40,6 +40,6 @@
 | `GET /api/admin/alarms` | 按 `deviceId`、`sn`（不区分大小写、忽略首尾空白）、`type`、`status` 筛选，按最近发生时间倒序，分页 |
 | `POST /api/admin/alarms/{alarmId}/handle` | 标记已处理，`note` 去首尾空白后 1–512 个字符 |
 
-- 处理时记录处理人与时间；`handlerName` 为后台账号的显示名。
+- 处理时记录处理人与时间；`handlerName` 为后台账号的显示名。标记处理写操作日志 `ALARM_HANDLE`（[admin-auth.md](admin-auth.md)）。
 - 告警不存在 10004；已被处理过 10009，处理人与备注不被覆盖（并发处理时只有一人成功）。
 - `status` 或 `type` 取值不在枚举内、备注为空或超长、分页参数不合法，都返回 10001。

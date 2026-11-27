@@ -4,12 +4,13 @@
 
 ## 后台守卫
 
-后台账号登录与会话属于 BIZ-08，还没有上线。本任务先建了守卫，**失败即拒**：
+守卫**失败即拒**：
 
 - `/api/admin/**` 下除登录接口外，没有后台身份（`AdminPrincipal`）的请求一律返回 401 / 10002，角色不在允许范围内返回 403 / 10003。
 - 每个后台接口都必须用 `@AdminRoles` 声明允许的角色（取契约 `x-roles`），可标在方法或类上；漏标则服务拒绝启动。
-- 生产代码里目前没有任何地方写入 `AdminPrincipal`，所以 BIZ-08 上线前后台接口实际不可用，也不会被未登录的人调用。BIZ-08 只需在登录拦截器里写入它。
-- 集成测试用 `TestAdminIdentity`（仅测试）通过请求头模拟后台身份。
+- `AdminPrincipal` 由后台会话拦截器写入（BIZ-08，见 [admin-auth.md](admin-auth.md)）。
+- 集成测试用 `TestAdminIdentity`（仅测试）通过请求头模拟后台身份，省去登录。
+- 单台录入、批量导入、导出印刷文件写操作日志（`DEVICE_CREATE`、`DEVICE_IMPORT`、`DEVICE_PRINT_EXPORT`）。
 
 ## 字段规则
 

@@ -103,8 +103,21 @@ class MigrationTests {
                         "SELECT config_value FROM system_config WHERE config_key = 'member.max_per_device'",
                         String.class))
                 .isEqualTo("5");
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM admin_user", Integer.class))
-                .as("不预置后台账号")
+        // 测试共用一个库，其他测试类会建账号：只断言迁移脚本本身不建账号（初始超级管理员由 AdminBootstrap 按配置创建）
+        assertThat(jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM admin_user"
+                                + " WHERE created_at <= (SELECT MAX(installed_on) FROM flyway_schema_history)",
+                        Integer.class))
+                .as("迁移不预置后台账号")
+                .isZero();
+        // V10：权限点只给前端控制按钮
+        assertThat(jdbc.queryForObject(
+                        "SELECT JSON_CONTAINS(permissions, '\"alarm:handle\"') FROM role WHERE code = 'OPS'",
+                        Integer.class))
+                .isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                        "SELECT JSON_CONTAINS(permissions, '\"alarm:handle\"') FROM role WHERE code = 'SUPPORT'",
+                        Integer.class))
                 .isZero();
     }
 
