@@ -67,6 +67,23 @@ public final class DeviceRules {
         return new DeviceDraft(s, i, mac, cc.isEmpty() ? null : cc, m, b);
     }
 
+    /** 单独校验并规整 IMEI（换 4G 模块用） @throws Invalid 40011 */
+    public static String imei(String raw) {
+        String i = strip(raw);
+        if (!IMEI.matcher(i).matches()) {
+            throw new Invalid(ErrorCode.IMEI_INVALID, "IMEI 应为 15 位数字");
+        }
+        if (!luhn(i)) {
+            throw new Invalid(ErrorCode.IMEI_INVALID, "IMEI 校验位不正确");
+        }
+        return i;
+    }
+
+    /** 单独校验并规整蓝牙 MAC 为 {@code AA:BB:CC:DD:EE:FF}（换主板用）；为空时返回 null @throws Invalid 10001 */
+    public static String bleMac(String raw) {
+        return mac(raw);
+    }
+
     /** 15 位 IMEI 的 Luhn 校验：从右数偶数位乘 2，各位数字之和为 10 的倍数 */
     public static boolean luhn(String digits) {
         int sum = 0;

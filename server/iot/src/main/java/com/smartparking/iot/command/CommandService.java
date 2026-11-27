@@ -90,7 +90,7 @@ public class CommandService {
         }
         RegisteredDevice device =
                 directory.findById(deviceId).orElseThrow(() -> new BizException(ErrorCode.DEVICE_NOT_FOUND));
-        if (repository.findInflight(deviceId).isPresent()) {
+        if (repository.hasInflight(deviceId)) {
             throw new BizException(ErrorCode.COMMAND_IN_PROGRESS);
         }
 

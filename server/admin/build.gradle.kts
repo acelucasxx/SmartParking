@@ -7,6 +7,9 @@ dependencies {
     // 后台查询（BIZ-09）：手机号脱敏与按手机号查询用用户域的 PhoneCipher，在线状态按当前时刻判定用 iot
     implementation(project(":user"))
     implementation(project(":iot"))
+    // 后台运维（BIZ-10）：换件校验与激活码在设备域，强制解绑的级联与激活码错误计数在归属域
+    implementation(project(":device"))
+    implementation(project(":ownership"))
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     // 后台会话存 Redis（BIZ-08）：退出登录、停用、重置密码立即生效

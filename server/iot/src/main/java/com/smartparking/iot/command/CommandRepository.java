@@ -23,6 +23,11 @@ public class CommandRepository {
     private static final String COLUMNS =
             "id, device_id, action, channel, status, result_code, issued_at, finished_at, duration_ms";
     private static final String INFLIGHT = "status IN ('PENDING', 'SENT', 'EXECUTING')";
+    /**
+     * 本仓库只处理 App 抬杆 / 落杆。后台自检（QUERY_STATUS / QUERY_VERSION，见 {@code selfcheck}）同表落库，但由自检服务自己推进，
+     * 这里的查询都排除它们；只有“是否有未终结指令”按全部动作判断，设备级串行对自检同样成立。
+     */
+    static final String APP_ACTIONS = "action IN ('OPEN', 'CLOSE')";
 
     private final JdbcClient jdbc;
 
@@ -81,29 +86,32 @@ public class CommandRepository {
     }
 
     public Optional<Row> find(long id) {
-        return jdbc.sql("SELECT " + COLUMNS + " FROM control_command WHERE id = ?")
+        return jdbc.sql("SELECT " + COLUMNS + " FROM control_command WHERE id = ? AND " + APP_ACTIONS)
                 .param(id)
                 .query(CommandRepository::map)
                 .optional();
     }
 
     public Optional<Row> findByIdempotencyKey(long deviceId, String key) {
-        return jdbc.sql("SELECT " + COLUMNS + " FROM control_command WHERE device_id = ? AND idempotency_key = ?")
+        return jdbc.sql("SELECT " + COLUMNS + " FROM control_command WHERE device_id = ? AND idempotency_key = ? AND "
+                        + APP_ACTIONS)
                 .params(deviceId, key)
                 .query(CommandRepository::map)
                 .optional();
     }
 
-    public Optional<Row> findInflight(long deviceId) {
-        return jdbc.sql("SELECT " + COLUMNS + " FROM control_command WHERE device_id = ? AND " + INFLIGHT)
-                .param(deviceId)
-                .query(CommandRepository::map)
-                .optional();
+    /** 该设备是否有未终结的指令（含后台自检） */
+    public boolean hasInflight(long deviceId) {
+        return jdbc.sql("SELECT COUNT(*) FROM control_command WHERE device_id = ? AND " + INFLIGHT)
+                        .param(deviceId)
+                        .query(Long.class)
+                        .single()
+                > 0;
     }
 
     /** 早于 {@code before} 下发且仍未终结的指令，供对账（IOT-08）使用 */
     public List<Row> findInflightIssuedBefore(Instant before, int limit) {
-        return jdbc.sql("SELECT " + COLUMNS + " FROM control_command WHERE " + INFLIGHT
+        return jdbc.sql("SELECT " + COLUMNS + " FROM control_command WHERE " + INFLIGHT + " AND " + APP_ACTIONS
                         + " AND issued_at < ? ORDER BY issued_at LIMIT ?")
                 .params(DbTime.toDb(before), limit)
                 .query(CommandRepository::map)

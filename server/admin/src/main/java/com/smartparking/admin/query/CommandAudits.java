@@ -40,7 +40,7 @@ public class CommandAudits {
 
     public record Operator(String type, long id, String name, String phoneMasked) {}
 
-    /** 契约 CommandAudit；fwVersion 在后台自检（BIZ-10）落库后提供，目前恒为 null */
+    /** 契约 CommandAudit；fwVersion 只在后台自检查询版本成功时有值 */
     public record Audit(
             long id,
             long deviceId,
@@ -80,7 +80,7 @@ public class CommandAudits {
     private static final String SELECT =
             """
             SELECT c.id, c.device_id, d.sn, c.user_id, u.nickname, u.phone_cipher, c.admin_id, a.display_name,
-                   c.role, c.channel, c.action, c.status, c.result_code, c.down_frame, c.raw_frame,
+                   c.role, c.channel, c.action, c.status, c.result_code, c.down_frame, c.raw_frame, c.fw_version,
                    c.issued_at, c.finished_at, c.duration_ms"""
                     + FROM;
 
@@ -213,7 +213,7 @@ public class CommandAudits {
                 rs.getString("action"),
                 rs.getString("status"),
                 rs.getString("result_code"),
-                null,
+                rs.getString("fw_version"),
                 down == null ? null : Hex.format(down),
                 raw == null ? null : Hex.format(raw),
                 Times.read(rs, "issued_at"),
