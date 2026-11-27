@@ -1,6 +1,11 @@
 spring:
   application:
     name: smartparking-server
+  servlet:
+    multipart:
+      # 设备批量导入（BIZ-03）：文件不超过 5 MB
+      max-file-size: 5MB
+      max-request-size: 6MB
   profiles:
     default: local
   flyway:
@@ -36,6 +41,9 @@ smartparking:
   user:
     # 小程序会话有效期（BIZ-01）；到期后前端重新 wx.login 静默登录。生产必须通过环境变量提供 data-key（手机号加密主密钥）
     session-ttl: 7d
+
+  # 设备入库（BIZ-03）：生产必须提供 smartparking.device.activate-code-key（激活码哈希主密钥，DEVICE_ACTIVATE_KEY）
+  # 与 smartparking.device.qr-url-template（机身二维码内容，EXT-13，DEVICE_QR_URL_TEMPLATE），缺少时拒绝启动
 
   wechat:
     # real 调用微信接口，需要 app-id 与 app-secret（EXT-10）；mock 只用于本地开发与测试

@@ -21,6 +21,10 @@ smartparking:
       device-secret-key: ${DEVICE_SECRET_KEY:device_secret_key_dev_only_0123456789}
   user:
     data-key: ${USER_DATA_KEY:user_data_key_dev_only_0123456789abcdef}
+  device:
+    activate-code-key: ${DEVICE_ACTIVATE_KEY:device_activate_key_dev_only_0123456789}
+    # 机身二维码方案（EXT-13）确定前的占位；.invalid 域名不会解析到任何地方
+    qr-url-template: ${DEVICE_QR_URL_TEMPLATE:https://smartparking.invalid/bind?sn={sn}}
   wechat:
     # 小程序资质（EXT-10）下来前用 mock：code 为 test:<名字> 时登录为该用户，其余 code 都是同一个开发者用户
     mode: ${WECHAT_MODE:mock}
