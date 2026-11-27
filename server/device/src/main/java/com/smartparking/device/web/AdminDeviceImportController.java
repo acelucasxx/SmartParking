@@ -6,6 +6,8 @@ import com.smartparking.common.web.AdminPrincipal;
 import com.smartparking.common.web.AdminRole;
 import com.smartparking.common.web.AdminRoles;
 import com.smartparking.common.web.ApiResponse;
+import com.smartparking.common.web.AuditTrail;
+import com.smartparking.common.web.Audited;
 import com.smartparking.common.web.PageResult;
 import com.smartparking.device.imports.DeviceImportService;
 import com.smartparking.device.imports.ImportSheets;
@@ -84,8 +86,11 @@ public class AdminDeviceImportController {
     public record Created(AdminDevice device, String activateCode) {}
 
     @PostMapping("/devices")
+    @Audited(action = "DEVICE_CREATE", targetType = "DEVICE")
     public ApiResponse<Created> create(@Valid @RequestBody DeviceInput in) {
+        AuditTrail.detail("sn", in.sn());
         Registered r = registry.register(in.sn(), in.imei(), in.bleMac(), in.iccid(), in.model(), in.batchNo());
+        AuditTrail.target(r.id());
         var d = r.device();
         AdminDevice device = new AdminDevice(
                 r.id(),
@@ -167,6 +172,7 @@ public class AdminDeviceImportController {
     }
 
     @PostMapping(value = "/device-imports", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Audited(action = "DEVICE_IMPORT", targetType = "IMPORT_TASK")
     public ApiResponse<ImportTaskView> upload(AdminPrincipal admin, @RequestPart("file") MultipartFile file)
             throws IOException {
         if (file.isEmpty()) {
@@ -179,7 +185,10 @@ public class AdminDeviceImportController {
         if (name.length() > 255) {
             name = name.substring(name.length() - 255);
         }
-        return ApiResponse.ok(ImportTaskView.of(imports.submit(admin.adminId(), name, file.getBytes())));
+        AuditTrail.detail("fileName", name);
+        Task task = imports.submit(admin.adminId(), name, file.getBytes());
+        AuditTrail.target(task.id());
+        return ApiResponse.ok(ImportTaskView.of(task));
     }
 
     @GetMapping("/device-imports/{taskId}")
@@ -211,6 +220,7 @@ public class AdminDeviceImportController {
     }
 
     @GetMapping("/device-imports/{taskId}/print-file")
+    @Audited(action = "DEVICE_PRINT_EXPORT", targetType = "IMPORT_TASK", targetIdVariable = "taskId")
     public ResponseEntity<byte[]> printFile(@PathVariable long taskId) {
         return download(
                 imports.exportPrintFile(taskId),

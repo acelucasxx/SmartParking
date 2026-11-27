@@ -46,6 +46,11 @@ class JdbcSystemSettings implements SystemSettings {
         }
     }
 
+    /** 后台修改参数后清除本实例的缓存，本实例立即生效；其他实例在缓存过期后生效 */
+    void invalidate(String key) {
+        cache.remove(key);
+    }
+
     private String value(String key) {
         Instant now = clock.instant();
         Cached cached = cache.get(key);

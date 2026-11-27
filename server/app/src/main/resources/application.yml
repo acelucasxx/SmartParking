@@ -42,6 +42,15 @@ smartparking:
     # 小程序会话有效期（BIZ-01）；到期后前端重新 wx.login 静默登录。生产必须通过环境变量提供 data-key（手机号加密主密钥）
     session-ttl: 7d
 
+  admin:
+    # 后台会话（BIZ-08）：空闲 30 分钟或自登录起 12 小时需重新登录；连续 5 次密码错误锁定 15 分钟
+    session-idle: 30m
+    session-max: 12h
+    max-failures: 5
+    lock-duration: 15m
+    # 库里没有后台账号时，用 ADMIN_BOOTSTRAP_PASSWORD 创建初始超级管理员 admin（首次登录必须修改密码）
+    bootstrap-password: ${ADMIN_BOOTSTRAP_PASSWORD:}
+
   # 设备入库（BIZ-03）：生产必须提供 smartparking.device.activate-code-key（激活码哈希主密钥，DEVICE_ACTIVATE_KEY）
   # 与 smartparking.device.qr-url-template（机身二维码内容，EXT-13，DEVICE_QR_URL_TEMPLATE），缺少时拒绝启动
 

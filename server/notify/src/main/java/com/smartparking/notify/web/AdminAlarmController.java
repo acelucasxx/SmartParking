@@ -6,6 +6,7 @@ import com.smartparking.common.web.AdminPrincipal;
 import com.smartparking.common.web.AdminRole;
 import com.smartparking.common.web.AdminRoles;
 import com.smartparking.common.web.ApiResponse;
+import com.smartparking.common.web.Audited;
 import com.smartparking.common.web.PageResult;
 import com.smartparking.iot.DbTime;
 import com.smartparking.notify.alarm.AlarmService;
@@ -88,6 +89,7 @@ public class AdminAlarmController {
     }
 
     @PostMapping("/{alarmId}/handle")
+    @Audited(action = "ALARM_HANDLE", targetType = "ALARM", targetIdVariable = "alarmId")
     public ApiResponse<Alarm> handle(
             @PathVariable long alarmId, @RequestBody HandleRequest body, AdminPrincipal admin) {
         return ApiResponse.ok(Alarm.of(alarms.handle(alarmId, admin, body.note())));
