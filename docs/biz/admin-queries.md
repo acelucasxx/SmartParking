@@ -44,7 +44,7 @@
 
 - 按 `deviceId`、SN（精确，不区分大小写）、操作人手机号、通道、状态、下发时间筛选，按下发时间倒序。
 - `operator`：小程序用户为 `USER`（昵称与脱敏手机号）；后台自检为 `ADMIN`（显示名）。
-- `downFrame` / `rawFrame` 为大写十六进制、空格分隔；`fwVersion` 在后台自检（BIZ-10）落库后提供，目前恒为 `null`。
+- `downFrame` / `rawFrame` 为大写十六进制、空格分隔；`fwVersion` 只在后台自检查询版本成功时有值（见 [admin-ops.md](admin-ops.md)）。
 
 ### 导出
 

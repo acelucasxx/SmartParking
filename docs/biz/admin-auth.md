@@ -80,8 +80,9 @@
 | `DEVICE_CREATE` / `DEVICE_IMPORT` / `DEVICE_PRINT_EXPORT` | 设备入库（印刷文件含激活码明文） |
 | `ALARM_HANDLE` | 告警标记处理 |
 | `COMMAND_EXPORT` | 导出指令流水（明细含起止时间与行数） |
+| `DEVICE_FORCE_UNBIND` / `DEVICE_RESET_CODE` / `DEVICE_DISABLE` / `DEVICE_ENABLE` / `DEVICE_REPLACE_PART` / `DEVICE_SELF_CHECK` | 设备运维操作（[admin-ops.md](admin-ops.md)），高危操作带必填原因 |
 
-强制解绑、重置激活码、换件、禁用、封禁（BIZ-10 / BIZ-11）上线时同样标注，并用 `AuditTrail.reason` 记录必填原因。
+用户封禁 / 解封上线时同样标注，并用 `AuditTrail.reason` 记录必填原因。
 
 `GET /api/admin/operation-logs` 按 `adminId`、`action`、`targetId`、时间（`from` 含、`to` 不含）筛选，按时间倒序分页。
 

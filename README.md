@@ -21,6 +21,7 @@
 - 设备入库：[docs/biz/device-import.md](docs/biz/device-import.md)
 - 后台账号、会话与操作日志：[docs/biz/admin-auth.md](docs/biz/admin-auth.md)
 - 后台查询：[docs/biz/admin-queries.md](docs/biz/admin-queries.md)
+- 后台运维操作：[docs/biz/admin-ops.md](docs/biz/admin-ops.md)
 - 扫码绑定：[docs/biz/bind.md](docs/biz/bind.md)
 - 我的车位与设备详情：[docs/biz/devices.md](docs/biz/devices.md)
 - 告警：[docs/biz/alarms.md](docs/biz/alarms.md)
