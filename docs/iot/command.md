@@ -1,6 +1,6 @@
 # 指令状态机
 
-对应 PRD 5.3、8.4，实现于 IOT-07（状态机）与 IOT-08（对账、重启恢复）。代码在 `server/iot` 的 `command` 包。iot 只负责“对设备 X 执行动作 Y”，发起人与权限、设备禁用由调用方（BIZ-05 控制接口）校验后传入。
+对应 PRD 5.3、8.4，实现于 IOT-07（状态机）与 IOT-08（对账、重启恢复）。代码在 `server/iot` 的 `command` 包。iot 只负责“对设备 X 执行动作 Y”，发起人与权限、设备禁用由调用方（BIZ-05 控制接口）校验后传入。接口层见 [remote-control.md](../biz/remote-control.md)。
 
 ## 提交
 
