@@ -30,6 +30,7 @@
 - 操作记录：[docs/biz/records.md](docs/biz/records.md)
 - 站内消息：[docs/biz/messages.md](docs/biz/messages.md)
 - 告警：[docs/biz/alarms.md](docs/biz/alarms.md)
+- 设备禁用与用户封禁：[docs/biz/disable-ban.md](docs/biz/disable-ban.md)
 - DTU 模拟器：[tools/dtu-sim/README.md](tools/dtu-sim/README.md)
 - WorkBuddy 代码复用评估：[docs/plan/workbuddy-reuse.md](docs/plan/workbuddy-reuse.md)
 - 协作约定：[CONTRIBUTING.md](CONTRIBUTING.md)
