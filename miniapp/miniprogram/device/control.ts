@@ -171,7 +171,7 @@ export function rejection(code: number): 'refresh' | 'leave' | 'show' {
 
 // ------------------------------------------------------------ 最近一次操作
 
-const SOURCE_LABEL: Record<TriggerSource, string> = {
+export const SOURCE_LABEL: Record<TriggerSource, string> = {
   APP: '',
   REMOTE_CONTROL: '遥控器',
   GROUND_SENSOR: '地感',

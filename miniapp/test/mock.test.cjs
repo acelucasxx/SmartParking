@@ -78,7 +78,9 @@ test('抬杆：已下发 → 执行中（抬杆中）→ 到位成功，设备�
   assert.equal(detail.lastOperation.id, `c-${cmd.id}`)
   assert.equal(detail.lastOperation.result, 'SUCCESS')
   const records = await client.get('/devices/1/records', { page: 1, size: 10 })
-  assert.equal(records.total, 1)
+  // 1 条 App 指令 + 主人可见的 4 条非 App 动作，最新的是刚才的指令
+  assert.equal(records.total, 5)
+  assert.equal(records.items[0].source, 'APP')
   assert.equal(records.items[0].channel, 'REMOTE')
 })
 
