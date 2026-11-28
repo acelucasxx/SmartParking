@@ -1,0 +1,26 @@
+<view class="result">
+  <view class="status">
+    <view class="status__icon status__icon--{{connection}}">{{connection === 'connected' ? '✓' : connection === 'timeout' ? '!' : '…'}}</view>
+    <view class="status__title">绑定成功</view>
+    <view wx:if="{{sn}}" class="status__sn">SN：{{sn}}</view>
+
+    <!-- 等待联网 → 联网成功 / 60 秒未联网 -->
+    <view class="status__line status__line--{{connection}}">
+      <block wx:if="{{connection === 'waiting'}}">正在等待设备联网…</block>
+      <block wx:elif="{{connection === 'connected'}}">设备已联网，可以远程控制了</block>
+      <block wx:else>设备未联网，请检查电池与安装位置。你可以先离开，设备联网后即可使用。</block>
+    </view>
+  </view>
+
+  <view class="form">
+    <view class="form__label">设备名称</view>
+    <input class="form__input" value="{{name}}" placeholder="如：家里车位" maxlength="{{nameMax}}" bindinput="onNameInput" />
+    <view class="form__label">车位号</view>
+    <input class="form__input" value="{{spaceNo}}" placeholder="如：B2-108" maxlength="{{nameMax}}" bindinput="onSpaceInput" />
+    <view class="form__hint">都可以留空，之后在设备设置里修改。</view>
+    <view wx:if="{{notice}}" class="form__notice">{{notice}}</view>
+  </view>
+
+  <button class="btn btn--primary" loading="{{saving}}" disabled="{{saving}}" bindtap="onDone">完成并进入设备</button>
+  <button wx:if="{{connection === 'timeout'}}" class="btn" bindtap="onLeave">先离开</button>
+</view>

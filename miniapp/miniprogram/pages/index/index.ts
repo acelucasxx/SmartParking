@@ -2,6 +2,8 @@ import { api } from '../../api/index'
 import type { GateAction } from '../../api/types'
 import { requirePhone } from '../../auth/index'
 import { HOME_PAGE } from '../../auth/flow'
+import { bindPageUrl } from '../../bind/flow'
+import { scanSn } from '../../bind/scan'
 import { HomeController, type HomeState } from '../../home/controller'
 import { cardViewModel } from '../../home/view'
 
@@ -67,10 +69,10 @@ Page({
 
   noop() {},
 
-  /** 添加车位：绑定前必须授权手机号（PRD 5.2），授权后回到首页 */
+  /** 添加车位：绑定前必须授权手机号（PRD 5.2），授权后回到首页再点一次扫码 */
   async onAdd() {
     if (!(await requirePhone(HOME_PAGE))) return
-    // 扫码绑定页在 MP-05
-    wx.showToast({ title: '扫码绑定即将上线', icon: 'none' })
+    const sn = await scanSn()
+    if (sn) wx.navigateTo({ url: bindPageUrl(sn) })
   },
 })
