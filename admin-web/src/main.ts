@@ -6,5 +6,12 @@ import 'element-plus/dist/index.css'
 import './styles/global.css'
 import App from './App.vue'
 import router from './router'
+import { vCan } from './directives/can'
 
-createApp(App).use(createPinia()).use(router).use(ElementPlus, { locale: zhCn }).mount('#app')
+// pinia 要先于 router 安装：路由守卫里会用 auth store
+createApp(App)
+  .use(createPinia())
+  .use(router)
+  .use(ElementPlus, { locale: zhCn })
+  .directive('can', vCan)
+  .mount('#app')
