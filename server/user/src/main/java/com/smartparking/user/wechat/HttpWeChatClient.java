@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -20,6 +21,7 @@ import org.springframework.web.client.RestClientException;
  * <ul>
  *   <li>登录：{@code GET /sns/jscode2session}。session_key 不落库也不返回：手机号走新版接口，不需要它解密。
  *   <li>手机号：{@code POST /wxa/business/getuserphonenumber}，需要接口调用凭证。
+ *   <li>订阅消息：{@code POST /cgi-bin/message/subscribe/send}，需要接口调用凭证。
  *   <li>接口调用凭证：{@code POST /cgi-bin/stable_token}。稳定版凭证在有效期内重复获取返回同一个，多实例各自获取互不踢掉；
  *       本地缓存到过期前 5 分钟。微信报凭证无效时强制刷新并重试一次。
  * </ul>
@@ -87,6 +89,42 @@ public class HttpWeChatClient implements WeChatClient {
             log.warn("微信接口调用凭证失效（errcode {}），强制刷新后重试", e.errcode());
             return requestPhone(code, true);
         }
+    }
+
+    @Override
+    public void sendSubscribeMessage(SubscribeMessage message) {
+        try {
+            requestSubscribe(message, false);
+        } catch (WeChatException e) {
+            if (!TOKEN_INVALID.contains(e.errcode())) {
+                throw e;
+            }
+            log.warn("微信接口调用凭证失效（errcode {}），强制刷新后重试", e.errcode());
+            requestSubscribe(message, true);
+        }
+    }
+
+    private void requestSubscribe(SubscribeMessage message, boolean forceRefresh) {
+        String token = accessToken(forceRefresh);
+        Map<String, Object> data = new LinkedHashMap<>();
+        message.data().forEach((key, value) -> data.put(key, Map.of("value", value)));
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("touser", message.openid());
+        body.put("template_id", message.templateId());
+        if (message.page() != null && !message.page().isBlank()) {
+            body.put("page", message.page());
+        }
+        body.put("miniprogram_state", message.state());
+        body.put("lang", "zh_CN");
+        body.put("data", data);
+        call("subscribe/send", () -> http.post()
+                .uri(u -> u.path("/cgi-bin/message/subscribe/send")
+                        .queryParam("access_token", token)
+                        .build())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(String.class));
     }
 
     private String requestPhone(String code, boolean forceRefresh) {

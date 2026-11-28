@@ -9,6 +9,8 @@ dependencies {
     // 站内消息（BIZ-15）订阅授权、转让、解绑事件
     implementation(project(":member"))
     implementation(project(":ownership"))
+    // 微信订阅消息（BIZ-18）复用 user 的微信接口与接口调用凭证
+    implementation(project(":user"))
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
 }

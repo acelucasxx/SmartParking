@@ -60,6 +60,10 @@ smartparking:
     base-url: https://api.weixin.qq.com
     connect-timeout: 3s
     read-timeout: 5s
+    # 订阅消息（BIZ-18）：模板审核通过（EXT-15）后打开并按模板填写，见 docs/biz/subscribe.md
+    subscribe:
+      enabled: false
+      state: formal
 
   device-event:
     partitions:
