@@ -11,6 +11,8 @@
     "miniprogram/api/types.ts",
     "miniprogram/mock/router.ts",
     "miniprogram/mock/server.ts",
-    "miniprogram/utils/format.ts"
+    "miniprogram/utils/format.ts",
+    "miniprogram/auth/flow.ts",
+    "miniprogram/content/agreements.ts"
   ]
 }

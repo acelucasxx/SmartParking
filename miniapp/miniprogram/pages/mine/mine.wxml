@@ -1,1 +1,11 @@
-<view class="placeholder">个人信息、帮助与客服（MP-11）：待实现</view>
+<view class="mine">
+  <view wx:if="{{error}}" class="placeholder" bindtap="load">{{error}}，点击重试</view>
+  <block wx:else>
+    <view class="mine__card">
+      <view class="mine__name">{{nickname || '微信用户'}}</view>
+      <view wx:if="{{phoneBound}}" class="mine__phone">{{phone}}</view>
+      <view wx:else class="mine__bind" bindtap="onBindPhone">授权手机号 ›</view>
+    </view>
+    <view class="placeholder">个人信息、帮助与客服（MP-11）：待实现</view>
+  </block>
+</view>

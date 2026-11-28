@@ -1,0 +1,7 @@
+<view class="banned">
+  <view class="banned__icon">!</view>
+  <view class="banned__title">账号已停用</view>
+  <view class="banned__desc">你的账号已被停用，暂时无法使用车位相关功能。如有疑问，请联系客服。</view>
+  <button class="banned__primary" open-type="contact">联系客服</button>
+  <button class="banned__secondary" bindtap="onLogout" loading="{{leaving}}" disabled="{{leaving}}">退出登录</button>
+</view>

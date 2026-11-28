@@ -2,7 +2,10 @@
   "pages": [
     "pages/index/index",
     "pages/message/message",
-    "pages/mine/mine"
+    "pages/mine/mine",
+    "pages/login/login",
+    "pages/agreement/agreement",
+    "pages/banned/banned"
   ],
   "window": {
     "navigationBarTitleText": "智能车位",
@@ -36,5 +39,6 @@
     "status-badge": "/components/status-badge/status-badge",
     "battery-icon": "/components/battery-icon/battery-icon",
     "confirm-dialog": "/components/confirm-dialog/confirm-dialog"
-  }
+  },
+  "__usePrivacyCheck__": true
 }

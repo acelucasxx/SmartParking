@@ -17,7 +17,7 @@ import { MockError, MockRouter } from './router'
 /**
  * 模拟后端：内存里的几台设备、指令、消息，覆盖首页、控制页、消息中心需要的接口与常见异常态。
  * 指令按时间推进：下发后 0.5 秒“已下发”，2 秒内“执行中”（闸杆动作中），2 秒后到位成功。
- * 其余接口在对应页面任务（MP-05 起）里补。
+ * 其余接口在对应页面任务里补。
  */
 
 /** 指令从下发到到位的模拟耗时 */
@@ -43,7 +43,8 @@ export interface MockServer {
 
 /** @param now 毫秒时间戳来源，测试里可控 */
 export function createMockServer(now: () => number = Date.now): MockServer {
-  const user: UserProfile = { id: 1, nickname: '张先生', phoneBound: true, phoneMasked: '138****8000' }
+  // 未授权手机号：可以走一遍登录授权页（MP-02）
+  const user: UserProfile = { id: 1, nickname: '张先生', phoneBound: false, phoneMasked: null }
   const iso = (ms: number) => toIso(ms)
 
   const devices: MockDevice[] = [
@@ -167,12 +168,22 @@ export function createMockServer(now: () => number = Date.now): MockServer {
       '/auth/login',
       (ctx) => {
         if (ctx.data.code === 'fail') throw new MockError(ErrorCode.WX_LOGIN_FAILED, undefined, 502)
-        return { token: `mock-token-${now()}`, expiresAt: iso(now() + 7 * DAY), user }
+        return { token: `mock-token-${now()}`, expiresAt: iso(now() + 7 * DAY), user: { ...user } }
       },
       { auth: false },
     )
     .on('POST', '/auth/logout', () => null)
-    .on('GET', '/me', () => user)
+    .on('POST', '/auth/phone', (ctx) => {
+      // 与服务端 mock 模式一致：1 开头的 11 位数字即该号码，fail 模拟失败，其余为 13800138000
+      const code = String(ctx.data.code ?? '')
+      if (!code) throw new MockError(ErrorCode.BAD_REQUEST)
+      if (code === 'fail') throw new MockError(ErrorCode.WX_PHONE_FAILED, undefined, 502)
+      const phone = /^1\d{10}$/.test(code) ? code : '13800138000'
+      user.phoneBound = true
+      user.phoneMasked = `${phone.slice(0, 3)}****${phone.slice(-4)}`
+      return { ...user }
+    })
+    .on('GET', '/me', () => ({ ...user }))
     .on('GET', '/devices', () => {
       settleAll()
       return devices.map(card)
