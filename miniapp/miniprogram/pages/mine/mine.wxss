@@ -1,1 +1,19 @@
-/* 我的 */
+.mine__card {
+  margin: 24rpx;
+  padding: 40rpx;
+  border-radius: 24rpx;
+  background: #fff;
+}
+.mine__name {
+  font-size: 36rpx;
+  font-weight: 600;
+}
+.mine__phone,
+.mine__bind {
+  margin-top: 12rpx;
+  color: var(--sp-text-secondary);
+  font-size: 26rpx;
+}
+.mine__bind {
+  color: var(--sp-primary);
+}

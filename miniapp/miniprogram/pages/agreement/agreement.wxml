@@ -1,0 +1,9 @@
+<view class="doc">
+  <view wx:if="{{placeholder}}" class="doc__draft">占位文本：正式条款待法务提供，上线前替换。</view>
+  <view class="doc__title">{{title}}</view>
+  <view class="doc__version">版本 {{version}}</view>
+  <view wx:for="{{sections}}" wx:key="heading" class="doc__section">
+    <view class="doc__heading">{{index + 1}}. {{item.heading}}</view>
+    <view class="doc__body">{{item.body}}</view>
+  </view>
+</view>

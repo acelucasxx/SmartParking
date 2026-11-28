@@ -1,0 +1,40 @@
+<view class="login">
+  <view class="login__brand">
+    <view class="login__logo">P</view>
+    <view class="login__title">智能车位</view>
+    <view class="login__subtitle">远程控制车位道闸，按有效期授权家人使用</view>
+  </view>
+
+  <view wx:if="{{phase === 'logging-in'}}" class="login__status">正在登录…</view>
+
+  <block wx:elif="{{phase === 'login-failed'}}">
+    <view class="login__notice login__notice--error">{{notice}}</view>
+    <button class="login__primary" bindtap="login">重新登录</button>
+  </block>
+
+  <block wx:else>
+    <view class="login__hint">绑定和管理车位需要验证手机号。手机号加密保存，界面只显示前 3 位和后 4 位。</view>
+
+    <button
+      wx:if="{{agreed}}"
+      class="login__primary"
+      open-type="getPhoneNumber|agreePrivacyAuthorization"
+      bindgetphonenumber="onGetPhoneNumber"
+      loading="{{phase === 'binding'}}"
+      disabled="{{phase === 'binding'}}"
+    >手机号快捷授权</button>
+    <button wx:else class="login__primary login__primary--off" bindtap="onNeedAgree">手机号快捷授权</button>
+
+    <view wx:if="{{notice}}" class="login__notice">{{notice}}</view>
+
+    <view class="login__agree" bindtap="onToggleAgree">
+      <view class="login__check {{agreed ? 'login__check--on' : ''}}" aria-role="checkbox" aria-checked="{{agreed}}"></view>
+      <text>我已阅读并同意</text>
+      <text class="login__link" catchtap="onOpenAgreement" data-type="user">《用户协议》</text>
+      <text>和</text>
+      <text class="login__link" catchtap="onOpenAgreement" data-type="privacy">《隐私政策》</text>
+    </view>
+
+    <view class="login__skip" bindtap="onSkip">暂不授权</view>
+  </block>
+</view>
