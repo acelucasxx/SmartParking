@@ -212,7 +212,8 @@ export function createMockServer(now: () => number = Date.now): MockServer {
     .on('GET', '/me', () => ({ ...user }))
     .on('GET', '/devices', () => {
       settleAll()
-      return devices.map(card)
+      // 与契约一致：作为主人的设备在前，被授权的在后
+      return [...devices.filter((d) => d.role === 'OWNER'), ...devices.filter((d) => d.role !== 'OWNER')].map(card)
     })
     .on('GET', '/devices/:id', (ctx) => {
       settleAll()

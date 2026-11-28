@@ -1,8 +1,51 @@
-<view wx:if="{{error}}" class="placeholder" bindtap="load">{{error}}，点击重试</view>
-<view wx:else class="home">
-  <view wx:for="{{items}}" wx:key="id" class="home__item" data-id="{{item.id}}" bindtap="onOpen">
-    <text>{{item.title}}</text>
-    <text class="home__badge">{{item.badge}} ›</text>
+<view class="home">
+  <view wx:if="{{loading}}" class="placeholder">加载中…</view>
+
+  <view wx:elif="{{loadError}}" class="home__state">
+    <view class="home__state-title">车位列表加载失败</view>
+    <view class="home__state-desc">{{loadError}}</view>
+    <button class="home__state-btn" bindtap="onRetry">重新加载</button>
   </view>
-  <view class="placeholder">车位首页卡片与快捷控制（MP-03）：待实现</view>
+
+  <!-- 空态：引导扫码绑定 -->
+  <view wx:elif="{{empty}}" class="home__state">
+    <view class="home__state-icon">P</view>
+    <view class="home__state-title">还没有车位</view>
+    <view class="home__state-desc">扫描车位锁机身上的二维码，输入包装内的激活码即可绑定。家人共享给你的车位也会显示在这里。</view>
+    <button class="home__state-btn home__state-btn--primary" bindtap="onAdd">扫码添加车位</button>
+  </view>
+
+  <block wx:else>
+    <view wx:if="{{stale}}" class="home__stale">网络异常，状态可能不是最新，下拉可刷新</view>
+
+    <view wx:for="{{cards}}" wx:key="id" class="card" data-id="{{item.id}}" bindtap="onOpen">
+      <view class="card__head">
+        <text class="card__title">{{item.title}}</text>
+        <text class="card__role card__role--{{item.roleTone}}">{{item.roleLabel}}</text>
+        <text class="card__badge tone--{{item.online.tone}}">{{item.online.label}}</text>
+      </view>
+      <view class="card__meta">
+        <text wx:if="{{item.spaceNo}}">车位号 {{item.spaceNo}}</text>
+        <text wx:if="{{item.validity}}">{{item.validity}}</text>
+      </view>
+      <view class="card__status">
+        <text class="card__gate tone--{{item.gate.tone}}">{{item.gate.label}}</text>
+        <battery-icon pct="{{item.batteryPct}}" />
+      </view>
+
+      <!-- 快捷控制：与控制页同一套三态规则；首页不放蓝牙入口 -->
+      <view class="card__actions">
+        <block wx:if="{{item.button.kind === 'control'}}">
+          <button class="quick {{item.openPrimary ? 'quick--primary' : ''}}" data-id="{{item.id}}" data-action="OPEN" catchtap="onControl">{{item.openLabel}}</button>
+          <button class="quick {{item.closePrimary ? 'quick--primary' : ''}}" data-id="{{item.id}}" data-action="CLOSE" catchtap="onControl">{{item.closeLabel}}</button>
+        </block>
+        <button wx:elif="{{item.button.kind === 'busy'}}" class="quick quick--primary quick--wide" disabled loading catchtap="noop">{{item.button.label}}</button>
+        <view wx:else class="card__reason">{{item.button.reason}}</view>
+      </view>
+
+      <view wx:if="{{item.result}}" class="card__result tone--{{item.result.tone}}">{{item.result.text}}</view>
+    </view>
+
+    <button class="home__add" bindtap="onAdd">+ 添加车位</button>
+  </block>
 </view>

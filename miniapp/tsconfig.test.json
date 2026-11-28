@@ -16,6 +16,8 @@
     "miniprogram/content/agreements.ts",
     "miniprogram/device/control.ts",
     "miniprogram/device/controller.ts",
-    "miniprogram/device/view.ts"
+    "miniprogram/device/view.ts",
+    "miniprogram/home/controller.ts",
+    "miniprogram/home/view.ts"
   ]
 }
