@@ -1,6 +1,7 @@
 import axios, { type AxiosRequestConfig } from 'axios'
 import { ElMessage } from 'element-plus'
 import { type AdminApiError, errorEffect, unwrap } from '@/auth/errors'
+import { filenameFromDisposition, isJsonResponse } from './files'
 
 /** 与服务端 ApiResponse 对应。code 为 0 表示成功。 */
 export interface ApiResponse<T> {
@@ -78,3 +79,64 @@ export const put = <T>(url: string, data?: unknown, options?: RequestOptions) =>
   request<T>({ ...options, method: 'PUT', url, data })
 export const patch = <T>(url: string, data?: unknown, options?: RequestOptions) =>
   request<T>({ ...options, method: 'PATCH', url, data })
+
+/** multipart 上传，字段名为 file */
+export function upload<T>(url: string, file: File, options?: RequestOptions) {
+  const form = new FormData()
+  form.append('file', file)
+  // 交给浏览器设置带 boundary 的 Content-Type
+  return request<T>({ ...options, method: 'POST', url, data: form, timeout: 60_000 })
+}
+
+/**
+ * 下载文件：带上登录态请求，成功时按 Content-Disposition 的文件名保存；
+ * 出错时服务端返回的是 JSON 信封，按普通接口错误处理（提示、会话失效等）。
+ */
+export async function download(url: string, fallbackName: string): Promise<void> {
+  const token = hooks?.token()
+  let resp
+  try {
+    resp = await http.request<Blob>({
+      method: 'GET',
+      url,
+      responseType: 'blob',
+      timeout: 120_000,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response) {
+      const body = await blobJson(e.response.data)
+      const outcome = unwrap(e.response.status, body)
+      if (!outcome.ok) return fail(outcome.error, false, !!token)
+    }
+    return fail((unwrap(0, undefined) as { ok: false; error: AdminApiError }).error, false, !!token)
+  }
+  const type = resp.headers['content-type'] as string | undefined
+  if (isJsonResponse(type)) {
+    const outcome = unwrap(resp.status, await blobJson(resp.data))
+    if (!outcome.ok) return fail(outcome.error, false, !!token)
+  }
+  if (token) hooks?.onActivity()
+  const name = filenameFromDisposition(
+    resp.headers['content-disposition'] as string | undefined,
+    fallbackName,
+  )
+  const href = URL.createObjectURL(resp.data)
+  const a = document.createElement('a')
+  a.href = href
+  a.download = name
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  // 给浏览器时间开始下载再释放
+  setTimeout(() => URL.revokeObjectURL(href), 10_000)
+}
+
+async function blobJson(data: unknown): Promise<unknown> {
+  if (!(data instanceof Blob)) return data
+  try {
+    return JSON.parse(await data.text())
+  } catch {
+    return undefined
+  }
+}
