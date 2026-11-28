@@ -8,7 +8,9 @@
     "pages/banned/banned",
     "pages/device/device",
     "pages/bind/bind",
-    "pages/bind/result"
+    "pages/bind/result",
+    "pages/members/members",
+    "pages/members/invite"
   ],
   "window": {
     "navigationBarTitleText": "智能车位",
