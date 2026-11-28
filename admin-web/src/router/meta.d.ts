@@ -8,5 +8,7 @@ declare module 'vue-router' {
     task?: string
     /** 进入需要的权限点（auth/access.ts） */
     permission?: string
+    /** 不在菜单里的页面，侧边栏高亮哪个菜单 */
+    activeMenu?: string
   }
 }
