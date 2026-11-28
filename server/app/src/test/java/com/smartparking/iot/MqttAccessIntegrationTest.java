@@ -280,12 +280,20 @@ class MqttAccessIntegrationTest {
 
     @Test
     void connectAndDisconnectAreRecordedInRuntime() throws Exception {
+        // device_runtime 跨用例保留。同一 IMEI 的前一个用例关闭连接后，断开事件经 EMQX 规则引擎异步回调，
+        // 可能还没写入：此时行仍是上一次连接的 CONNECTED，last_seen_at 已被那次的上行刷新到连接时刻之后。
+        // 所以要等到本次连接的事件（时刻晚于连接前的记录）落库，不能只看 last_conn_event
+        Conn before = conn(REGISTERED);
         try (var device = device(REGISTERED, true)) {
             device.connect();
-            await().atMost(Duration.ofSeconds(20))
-                    .until(() -> "CONNECTED".equals(conn(REGISTERED).event()));
+            await().atMost(Duration.ofSeconds(20)).until(() -> {
+                Conn c = conn(REGISTERED);
+                return "CONNECTED".equals(c.event()) && (before.at() == null || c.at().isAfter(before.at()));
+            });
             Conn up = conn(REGISTERED);
-            assertThat(up.seen()).as("连接事件刷新 last_seen_at").isNotNull().isEqualTo(up.at());
+            // 连接事件把 last_seen_at 刷新到连接时刻；之后平台延迟 connect-delay 主动查询，设备回的状态帧会再往后刷新，
+            // 故断言不早于连接时刻（若连接事件未刷新，last_seen_at 停在上一次连接期间，必早于本次连接）
+            assertThat(up.seen()).as("连接事件刷新 last_seen_at").isNotNull().isAfterOrEqualTo(up.at());
             assertThat(listener.connections)
                     .anyMatch(e -> e.imei().equals(REGISTERED) && e.state() == ConnectionState.CONNECTED);
 
@@ -294,7 +302,11 @@ class MqttAccessIntegrationTest {
                     .until(() -> "DISCONNECTED".equals(conn(REGISTERED).event()));
             Conn down = conn(REGISTERED);
             assertThat(down.at()).isAfter(up.at());
-            assertThat(down.seen()).as("断开事件不刷新 last_seen_at").isEqualTo(up.seen());
+            // 读 up 与断线之间可能恰好到达查询回帧，因此不与 up.seen() 比相等；断开事件若刷新，last_seen_at 会等于断开时刻
+            assertThat(down.seen())
+                    .as("断开事件不刷新 last_seen_at")
+                    .isAfterOrEqualTo(up.seen())
+                    .isBefore(down.at());
 
             await().atMost(Duration.ofSeconds(20))
                     .until(() -> "CONNECTED".equals(conn(REGISTERED).event()));
