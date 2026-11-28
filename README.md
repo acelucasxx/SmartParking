@@ -64,11 +64,13 @@ cd server && ./gradlew :app:bootRun
 
 健康检查：`http://localhost:8080/actuator/health`。启动时会自动执行数据库迁移，所以要先起依赖服务。`./gradlew build` 的集成测试用 Testcontainers 自带 MySQL，只需要 Docker 在运行。
 
-**admin-web**（需要 Node 20+）
+**admin-web**（需要 Node 22+，单元测试用 Node 内置测试框架直接跑 TS）
 
 ```bash
 cd admin-web && npm install && npm run dev
 ```
+
+开发代理把 `/api` 转到 `localhost:8080`。本机 `local` profile 的初始超级管理员为 `admin`，临时密码见 [docs/biz/admin-auth.md](docs/biz/admin-auth.md)，首次登录必须修改。登录、锁定提示、会话超时、菜单与按钮权限的规则在 `admin-web/src/auth/`（不依赖 Vue，`npm test` 单测）；按钮权限用 `v-can="'device:import'"` 或 `auth.can()`。
 
 **miniapp**：用微信开发者工具导入 `miniapp/` 目录，工程说明与 mock 开关见 [miniapp/README.md](miniapp/README.md)。类型检查与单元测试：
 

@@ -75,7 +75,10 @@ jobs:
       - name: Lint
         run: npx eslint .
       - name: Format check
-        run: npx prettier --check src
+        run: npx prettier --check src test
+      # 纯逻辑单测（登录、权限、会话超时），Node 内置测试框架直接跑 TS
+      - name: Test
+        run: npm test
       # build = vue-tsc 类型检查 + vite 构建
       - name: Build
         run: npm run build
