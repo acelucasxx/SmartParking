@@ -21,6 +21,7 @@
     "miniprogram/home/view.ts",
     "miniprogram/bind/flow.ts",
     "miniprogram/bind/connect.ts",
-    "miniprogram/members/period.ts"
+    "miniprogram/members/period.ts",
+    "miniprogram/invite/accept.ts"
   ]
 }
