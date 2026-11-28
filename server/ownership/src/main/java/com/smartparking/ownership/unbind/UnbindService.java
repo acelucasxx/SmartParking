@@ -61,6 +61,11 @@ public class UnbindService {
                 owner.deviceId(),
                 released.revokedMembers().size());
         events.publishEvent(new DeviceUnboundEvent(
-                owner.deviceId(), owner.userId(), released.revokedMembers(), OwnershipRelease.Type.UNBIND, now));
+                owner.deviceId(),
+                owner.userId(),
+                released.revokedMembers(),
+                OwnershipRelease.Type.UNBIND,
+                released.deviceName(),
+                now));
     }
 }

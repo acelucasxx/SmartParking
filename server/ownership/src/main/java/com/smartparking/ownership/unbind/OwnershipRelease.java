@@ -19,9 +19,17 @@ public class OwnershipRelease {
         FORCE_UNBIND
     }
 
-    /** @param revokedMembers 被撤销授权的用户，用于站内消息（BIZ-15） */
+    /**
+     * @param revokedMembers 被撤销授权的用户，用于站内消息（BIZ-15）
+     * @param deviceName 变更前的设备展示名（名称，未命名时为“车位 SN”）；解绑会清空名称，消息里仍要显示它
+     */
     public record Released(
-            long deviceId, long formerOwner, List<Long> revokedMembers, int voidedInvites, int voidedTransfers) {}
+            long deviceId,
+            long formerOwner,
+            List<Long> revokedMembers,
+            int voidedInvites,
+            int voidedTransfers,
+            String deviceName) {}
 
     private final JdbcClient jdbc;
 
@@ -44,6 +52,7 @@ public class OwnershipRelease {
             String reason,
             Instant at) {
         var now = DbTime.toDb(at);
+        String name = displayName(deviceId);
         Cleared c = clearDependents(deviceId, now);
         jdbc.sql(
                         """
@@ -58,7 +67,7 @@ public class OwnershipRelease {
                         VALUES (?, ?, ?, ?, ?, ?, ?)""")
                 .params(deviceId, type.name(), formerOwner, operatorType, operatorId, reason, now)
                 .update();
-        return new Released(deviceId, formerOwner, c.members(), c.invites(), c.transfers());
+        return new Released(deviceId, formerOwner, c.members(), c.invites(), c.transfers(), name);
     }
 
     /**
@@ -67,6 +76,7 @@ public class OwnershipRelease {
      */
     public Released transfer(long deviceId, long fromUser, long toUser, Instant at) {
         var now = DbTime.toDb(at);
+        String name = displayName(deviceId);
         Cleared c = clearDependents(deviceId, now);
         jdbc.sql("UPDATE device SET owner_user_id = ?, owner_since = ?, version = version + 1 WHERE id = ?")
                 .params(toUser, now, deviceId)
@@ -77,7 +87,15 @@ public class OwnershipRelease {
                         VALUES (?, 'TRANSFER', ?, ?, 'USER', ?, ?)""")
                 .params(deviceId, fromUser, toUser, toUser, now)
                 .update();
-        return new Released(deviceId, fromUser, c.members(), c.invites(), c.transfers());
+        return new Released(deviceId, fromUser, c.members(), c.invites(), c.transfers(), name);
+    }
+
+    /** 设备展示名：名称，未命名时为“车位 SN” */
+    public String displayName(long deviceId) {
+        return jdbc.sql("SELECT COALESCE(NULLIF(TRIM(name), ''), CONCAT('车位 ', sn)) FROM device WHERE id = ?")
+                .param(deviceId)
+                .query(String.class)
+                .single();
     }
 
     private record Cleared(List<Long> members, int invites, int transfers) {}
