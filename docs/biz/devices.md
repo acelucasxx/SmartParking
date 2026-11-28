@@ -30,7 +30,7 @@
 ## 详情附加字段
 
 - `ownerNickname`：主人昵称，未设置时为“微信用户”。被授权人只看到昵称，看不到手机号（PRD 10）。
-- `bleAvailable`：`smartparking.ble.enabled`，默认 `false`。蓝牙依赖固件（EXT-03 / EXT-04），上线前离线时只显示原因。
+- `bleAvailable`：`smartparking.ble.enabled` 打开且设备登记了蓝牙 MAC。开关默认 `false`：蓝牙依赖固件（EXT-03 / EXT-04），上线前离线时只显示原因。见 [ble.md](ble.md)。
 - `lastOperation`：最近一条本人可见的 App 操作（`id` 为 `c-<指令 ID>`）。可见范围与操作记录一致：
   - 主人能看到自成为主人起的全部操作，以及本人发起的操作；被授权人只能看到本人发起的操作。
   - 操作人名称：主人看被授权人的操作时，备注优先；其余显示昵称。

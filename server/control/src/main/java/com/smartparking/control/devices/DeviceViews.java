@@ -209,11 +209,11 @@ public class DeviceViews {
         DeviceStatus status = status(grant);
         var extra = jdbc.sql(
                         """
-                        SELECT d.model, d.fw_version, u.nickname
+                        SELECT d.model, d.fw_version, u.nickname, d.ble_mac
                           FROM device d LEFT JOIN app_user u ON u.id = d.owner_user_id
                          WHERE d.id = ?""")
                 .param(grant.deviceId())
-                .query((rs, n) -> new String[] {rs.getString(1), rs.getString(2), rs.getString(3)})
+                .query((rs, n) -> new String[] {rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4)})
                 .single();
         return new DeviceDetail(
                 card.id(),
@@ -234,7 +234,8 @@ public class DeviceViews {
                 status.statusRefreshedAt(),
                 status.lastSeenAt(),
                 extra[2] == null || extra[2].isBlank() ? DEFAULT_NICKNAME : extra[2],
-                bleAvailable,
+                // 蓝牙入口：总开关打开（固件支持票据校验，PRD 5.4）且该设备登记了蓝牙 MAC
+                bleAvailable && extra[3] != null,
                 lastOperation(grant).orElse(null));
     }
 

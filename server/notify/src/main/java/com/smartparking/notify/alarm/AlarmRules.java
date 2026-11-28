@@ -49,7 +49,7 @@ public class AlarmRules {
         raise(event.deviceId(), AlarmType.valueOf(fault.get().name()), event);
     }
 
-    /** 连续 3 次超时：该设备最近 3 条已终结的 App 抬杆 / 落杆都是 TIMEOUT（后台自检不计）。之后每多一次连续超时，合并计数 +1；中间有一次成功或失败即重新计数。 */
+    /** 连续 3 次超时：该设备最近 3 条已终结的 App 远程抬杆 / 落杆都是 TIMEOUT（后台自检、蓝牙不计）。之后每多一次连续超时，合并计数 +1；中间有一次成功或失败即重新计数。 */
     @EventListener
     public void onCommandFinished(CommandFinishedEvent event) {
         if (event.status() != CommandStatus.TIMEOUT) {
@@ -59,7 +59,8 @@ public class AlarmRules {
             List<String> recent = jdbc.sql(
                             """
                             SELECT status FROM control_command
-                            WHERE device_id = ? AND action IN ('OPEN', 'CLOSE') AND status IN ('SUCCESS', 'FAILED', 'TIMEOUT')
+                            WHERE device_id = ? AND channel = 'REMOTE' AND action IN ('OPEN', 'CLOSE')
+                              AND status IN ('SUCCESS', 'FAILED', 'TIMEOUT')
                             ORDER BY issued_at DESC, id DESC LIMIT ?""")
                     .params(event.deviceId(), TIMEOUT_STREAK)
                     .query(String.class)
