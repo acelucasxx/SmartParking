@@ -19,6 +19,9 @@
     "vite.config.ts",
     "eslint.config.js",
     "test/**/*.ts",
-    "src/auth/**/*.ts"
+    "src/auth/**/*.ts",
+    "src/devices/**/*.ts",
+    "src/api/files.ts",
+    "src/utils/**/*.ts"
   ]
 }

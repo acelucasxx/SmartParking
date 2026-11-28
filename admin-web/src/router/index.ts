@@ -3,6 +3,11 @@ import AdminLayout from '@/layouts/AdminLayout.vue'
 import { FORBIDDEN_PATH, LOGIN_PATH, MENU, PASSWORD_PATH, guard } from '@/auth/access'
 import { useAuthStore } from '@/stores/auth'
 
+/** 已实现的菜单页；其余用占位页 */
+const PAGES: Record<string, () => Promise<unknown>> = {
+  'device-import': () => import('@/views/DeviceImportView.vue'),
+}
+
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -19,7 +24,7 @@ const router = createRouter({
         ...MENU.map((m) => ({
           path: m.path.slice(1),
           name: m.name,
-          component: () => import('@/views/PlaceholderView.vue'),
+          component: PAGES[m.name] ?? (() => import('@/views/PlaceholderView.vue')),
           meta: { title: m.title, task: m.task, permission: m.permission },
         })),
         {
