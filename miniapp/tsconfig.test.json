@@ -18,6 +18,8 @@
     "miniprogram/device/controller.ts",
     "miniprogram/device/view.ts",
     "miniprogram/home/controller.ts",
-    "miniprogram/home/view.ts"
+    "miniprogram/home/view.ts",
+    "miniprogram/bind/flow.ts",
+    "miniprogram/bind/connect.ts"
   ]
 }

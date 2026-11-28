@@ -6,7 +6,9 @@
     "pages/login/login",
     "pages/agreement/agreement",
     "pages/banned/banned",
-    "pages/device/device"
+    "pages/device/device",
+    "pages/bind/bind",
+    "pages/bind/result"
   ],
   "window": {
     "navigationBarTitleText": "智能车位",

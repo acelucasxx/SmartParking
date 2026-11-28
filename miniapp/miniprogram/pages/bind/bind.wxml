@@ -1,0 +1,57 @@
+<view class="bind">
+  <view wx:if="{{phase === 'loading'}}" class="placeholder">加载中…</view>
+
+  <view wx:elif="{{phase === 'invalid'}}" class="state">
+    <view class="state__title">无法识别的二维码</view>
+    <view class="state__desc">请扫描车位锁机身上的二维码。</view>
+    <button class="btn btn--primary" bindtap="onScanAgain">重新扫码</button>
+    <button class="btn" bindtap="onHome">返回首页</button>
+  </view>
+
+  <view wx:elif="{{phase === 'error'}}" class="state">
+    <view class="state__title">加载失败</view>
+    <view class="state__desc">{{notice}}</view>
+    <button class="btn btn--primary" bindtap="load">重试</button>
+  </view>
+
+  <block wx:elif="{{phase === 'input'}}">
+    <view class="device">
+      <view class="device__label">设备编号（SN）</view>
+      <view class="device__sn">{{sn}}</view>
+      <view wx:if="{{model}}" class="device__model">型号 {{model}}</view>
+    </view>
+
+    <view class="form">
+      <view class="form__label">激活码</view>
+      <input
+        class="form__input {{locked ? 'form__input--disabled' : ''}}"
+        value="{{code}}"
+        placeholder="请输入包装或说明书内的 {{codeLength}} 位激活码"
+        maxlength="{{codeLength + 4}}"
+        type="text"
+        confirm-type="done"
+        disabled="{{locked || submitting}}"
+        bindinput="onCodeInput"
+        bindconfirm="onSubmit"
+      />
+      <view class="form__hint">激活码不区分大小写，不在机身上。</view>
+      <view wx:if="{{notice}}" class="form__notice {{locked ? 'form__notice--locked' : ''}}">{{notice}}</view>
+    </view>
+
+    <button class="btn btn--primary" loading="{{submitting}}" disabled="{{locked || submitting || code.length !== codeLength}}" bindtap="onSubmit">
+      绑定
+    </button>
+    <button wx:if="{{locked}}" class="btn" open-type="contact">联系客服</button>
+  </block>
+
+  <!-- 已有主人 / 已停用 / 不存在 -->
+  <view wx:else class="state">
+    <view class="state__icon">!</view>
+    <view class="state__title">{{title}}</view>
+    <view wx:if="{{sn}}" class="state__sn">SN：{{sn}}</view>
+    <view class="state__desc">{{desc}}</view>
+    <button wx:if="{{phase !== 'not-found'}}" class="btn btn--primary" open-type="contact">联系客服</button>
+    <button wx:else class="btn btn--primary" bindtap="onScanAgain">重新扫码</button>
+    <button class="btn" bindtap="onHome">返回首页</button>
+  </view>
+</view>

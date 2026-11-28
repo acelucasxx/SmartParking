@@ -18,6 +18,7 @@ import { MockError, MockRouter } from './router'
  * 模拟后端：内存里的几台设备、指令、消息，覆盖首页、控制页、消息中心需要的接口与常见异常态。
  * 指令按时间推进：下发后 0.5 秒“已下发”，2 秒内“执行中”（闸杆动作中），2 秒后到位成功。
  * 演示设备 5–7 用来看控制页的异常态：5 每次都遇阻，6 一直不到位直到超时，7 电机故障。
+ * 扫码绑定：见 MOCK_BINDABLE（待激活的 SN 与激活码）；同一 SN 连续输错 5 次锁定 30 分钟。
  * 其余接口在对应页面任务里补。
  */
 
@@ -26,6 +27,18 @@ export const MOCK_SENT_MS = 500
 export const MOCK_DONE_MS = 2000
 /** 与服务端一致：15 秒未到位判超时 */
 export const MOCK_TIMEOUT_MS = 15_000
+
+/**
+ * 待激活、可绑定的设备（扫码绑定 MP-05）。connectMs 为绑定后多久“联网成功”，null 表示一直不联网（看 60 秒超时）。
+ * 已有设备的 SN 预检为：主人的 → 本人已绑定；被授权的 → 已有主人；停用的 → 已停用。另有 SP2612000777 已被他人绑定。
+ */
+export const MOCK_BINDABLE: Record<string, { code: string; connectMs: number | null }> = {
+  SP2612000888: { code: 'K7Q2M9XA', connectMs: 3000 },
+  SP2612000666: { code: 'K7Q2M9XB', connectMs: null },
+}
+export const MOCK_TAKEN_SN = 'SP2612000777'
+const BIND_MAX_FAILURES = 5
+const BIND_LOCK_MS = 30 * 60_000
 
 /** 演示设备的指令结局 */
 type Outcome = 'OBSTRUCTED' | 'TIMEOUT'
@@ -78,6 +91,11 @@ export function createMockServer(now: () => number = Date.now): MockServer {
     [5, 'OBSTRUCTED'],
     [6, 'TIMEOUT'],
   ])
+
+  /** 已绑定的演示设备：设备 ID → 绑定时刻与联网耗时 */
+  const bound = new Map<number, { at: number; connectMs: number | null }>()
+  const bindFailures = new Map<string, { count: number; lockedUntil: number }>()
+  let nextDeviceId = 101
 
   const commands: MockCommand[] = []
   /** 指令 ID → 幂等键：连点只产生一条指令 */
@@ -176,6 +194,39 @@ export function createMockServer(now: () => number = Date.now): MockServer {
 
   function settleAll(): void {
     commands.forEach(advance)
+    // 绑定后到点“联网”：收到状态帧
+    for (const [id, b] of bound) {
+      if (b.connectMs === null || now() - b.at < b.connectMs) continue
+      const d = devices.find((x) => x.id === id)
+      if (d && !d.statusRefreshedAt) {
+        Object.assign(d, {
+          onlineState: 'ONLINE',
+          gateStatus: 'CLOSED',
+          occupied: false,
+          batteryPct: 100,
+          signalLevel: 22,
+          statusRefreshedAt: iso(b.at + b.connectMs),
+          lastSeenAt: iso(b.at + b.connectMs),
+        })
+      }
+    }
+  }
+
+  function bindState(sn: string): { state: 'BINDABLE' | 'BOUND_BY_ME' | 'BOUND_BY_OTHER' | 'DISABLED'; device?: MockDevice } {
+    const d = devices.find((x) => x.sn === sn)
+    if (d) {
+      if (d.role === 'OWNER') return { state: 'BOUND_BY_ME', device: d }
+      return { state: d.enabled ? 'BOUND_BY_OTHER' : 'DISABLED' }
+    }
+    if (sn === MOCK_TAKEN_SN) return { state: 'BOUND_BY_OTHER' }
+    if (MOCK_BINDABLE[sn]) return { state: 'BINDABLE' }
+    throw new MockError(ErrorCode.DEVICE_NOT_FOUND, undefined, 404)
+  }
+
+  function normalizedSn(raw: unknown): string {
+    const sn = String(raw ?? '').replace(/\s+/g, '').toUpperCase()
+    if (!/^[A-Z0-9]{8,32}$/.test(sn)) throw new MockError(ErrorCode.BAD_REQUEST)
+    return sn
   }
 
   function card(d: MockDevice): DeviceCard {
@@ -275,6 +326,51 @@ export function createMockServer(now: () => number = Date.now): MockServer {
       const c = commands.find((x) => x.command.deviceId === d.id && String(x.command.id) === ctx.params.commandId)
       if (!c) throw new MockError(ErrorCode.NOT_FOUND, '指令不存在', 404)
       return copy(advance(c))
+    })
+    .on('GET', '/bind/:sn', (ctx) => {
+      const sn = normalizedSn(ctx.params.sn)
+      const { state, device: d } = bindState(sn)
+      return { sn, model: 'SPG-100', state, deviceId: d?.id ?? null }
+    })
+    .on('POST', '/bind', (ctx) => {
+      const sn = normalizedSn(ctx.data.sn)
+      const code = String(ctx.data.activateCode ?? '').replace(/\s+/g, '').toUpperCase()
+      if (!/^[0-9A-Z]{8}$/.test(code)) throw new MockError(ErrorCode.BAD_REQUEST)
+      if (!user.phoneBound) throw new MockError(ErrorCode.BAD_REQUEST, '请先授权手机号')
+      const fail = bindFailures.get(sn)
+      if (fail && fail.lockedUntil > now()) {
+        const minutes = Math.ceil((fail.lockedUntil - now()) / 60_000)
+        throw new MockError(ErrorCode.ACTIVATE_LOCKED, `错误次数过多，请 ${minutes} 分钟后再试`, 429)
+      }
+      const { state, device: mine } = bindState(sn)
+      if (state === 'BOUND_BY_ME') return card(mine!)
+      if (state === 'BOUND_BY_OTHER') throw new MockError(ErrorCode.DEVICE_ALREADY_BOUND, undefined, 409)
+      if (state === 'DISABLED') throw new MockError(ErrorCode.DEVICE_DISABLED, undefined, 403)
+      const pending = MOCK_BINDABLE[sn]
+      if (code !== pending.code) {
+        const count = (fail && fail.lockedUntil <= now() && fail.lockedUntil > 0 ? 0 : (fail?.count ?? 0)) + 1
+        if (count >= BIND_MAX_FAILURES) {
+          bindFailures.set(sn, { count, lockedUntil: now() + BIND_LOCK_MS })
+          throw new MockError(ErrorCode.ACTIVATE_LOCKED, '错误次数过多，请 30 分钟后再试', 429)
+        }
+        bindFailures.set(sn, { count, lockedUntil: 0 })
+        throw new MockError(ErrorCode.ACTIVATE_CODE_WRONG, `激活码错误，还可尝试 ${BIND_MAX_FAILURES - count} 次`, 400)
+      }
+      bindFailures.delete(sn)
+      const d = device({
+        id: nextDeviceId++,
+        sn,
+        role: 'OWNER',
+        onlineState: 'OFFLINE',
+        gateStatus: 'UNKNOWN',
+        occupied: null,
+        signalLevel: null,
+        statusRefreshedAt: null,
+        lastSeenAt: null,
+      })
+      devices.push(d)
+      bound.set(d.id, { at: now(), connectMs: pending.connectMs })
+      return card(d)
     })
     .on('GET', '/devices/:id/records', (ctx): Page<OperationRecord> => {
       settleAll()
