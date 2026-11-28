@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartparking.user.session.SessionStore;
 import com.smartparking.user.web.AppAuthInterceptor;
 import com.smartparking.user.web.AppWebConfigurer;
+import com.smartparking.user.web.PatchOverrideFilter;
 import com.smartparking.user.wechat.HttpWeChatClient;
 import com.smartparking.user.wechat.MockWeChatClient;
 import com.smartparking.user.wechat.WeChatClient;
@@ -12,6 +13,7 @@ import java.time.Clock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -57,6 +59,14 @@ public class UserConfiguration {
             PhoneCipher phones,
             UserProperties properties) {
         return new AuthService(wechat, users, sessions, phones, properties, Clock.systemUTC());
+    }
+
+    /** 小程序不支持 PATCH：POST + X-HTTP-Method-Override: PATCH */
+    @Bean
+    FilterRegistrationBean<PatchOverrideFilter> patchOverrideFilter() {
+        var registration = new FilterRegistrationBean<>(new PatchOverrideFilter());
+        registration.addUrlPatterns("/api/app/*");
+        return registration;
     }
 
     @Bean

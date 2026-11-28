@@ -1,0 +1,42 @@
+.battery {
+  display: inline-flex;
+  align-items: center;
+  color: var(--sp-text-secondary);
+  font-size: 22rpx;
+}
+.battery__body {
+  display: flex;
+  gap: 2rpx;
+  width: 44rpx;
+  height: 22rpx;
+  padding: 2rpx;
+  border: 2rpx solid currentColor;
+  border-radius: 4rpx;
+  box-sizing: border-box;
+}
+.battery__bar {
+  flex: 1;
+  border-radius: 1rpx;
+}
+.battery__bar--on {
+  background: var(--sp-success);
+}
+.battery__cap {
+  width: 4rpx;
+  height: 10rpx;
+  margin-left: 2rpx;
+  border-radius: 0 2rpx 2rpx 0;
+  background: currentColor;
+}
+.battery__text {
+  margin-left: 8rpx;
+}
+.battery--low {
+  color: var(--sp-danger);
+}
+.battery--low .battery__bar--on {
+  background: var(--sp-danger);
+}
+.battery--unknown {
+  color: var(--sp-muted);
+}

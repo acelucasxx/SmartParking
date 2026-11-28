@@ -106,6 +106,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Typecheck
         run: npm run typecheck
+      - name: Unit tests
+        run: npm test
 
   compose:
     name: deploy · compose config

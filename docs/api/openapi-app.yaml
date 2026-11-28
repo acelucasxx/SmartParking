@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: 智能车位道闸 · 小程序接口
-  version: 1.0.1
+  version: 1.0.2
   description: |
     小程序端接口契约 v1。依据 PRD V1.1 第 3、5、6 章。
 
@@ -9,6 +9,7 @@ info:
     - 认证：`Authorization: Bearer <token>`，由 `/auth/login` 签发。
     - 所有权限判定在服务端完成：设备启用、用户未封禁，且为主人或有效期内的被授权人。
     - 每个接口可能返回的业务错误码列在 `x-error-codes`。
+    - 小程序 `wx.request` 不支持 PATCH：标为 `patch` 的接口用 `POST` 并带请求头 `X-HTTP-Method-Override: PATCH` 调用，服务端按 PATCH 处理（只认 PATCH 这一个取值）。
 servers:
   - url: http://localhost:8080/api/app
     description: 本地

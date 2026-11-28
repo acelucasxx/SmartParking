@@ -1,0 +1,16 @@
+<view wx:if="{{show}}" class="mask" bindtap="onCancel" catchtouchmove="noop">
+  <view class="dialog" catchtap="noop" role="dialog" aria-label="{{title}}">
+    <view wx:if="{{title}}" class="dialog__title">{{title}}</view>
+    <view class="dialog__content">
+      <text wx:if="{{content}}">{{content}}</text>
+      <slot></slot>
+    </view>
+    <view class="dialog__actions">
+      <view class="dialog__btn" bindtap="onCancel">{{cancelText}}</view>
+      <view
+        class="dialog__btn dialog__btn--primary {{danger ? 'dialog__btn--danger' : ''}} {{remaining > 0 || loading ? 'dialog__btn--disabled' : ''}}"
+        bindtap="onConfirm"
+      >{{loading ? '处理中…' : (remaining > 0 ? confirmText + '（' + remaining + 's）' : confirmText)}}</view>
+    </view>
+  </view>
+</view>
