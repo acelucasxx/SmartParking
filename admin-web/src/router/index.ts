@@ -9,6 +9,7 @@ const PAGES: Record<string, () => Promise<unknown>> = {
   devices: () => import('@/views/DeviceListView.vue'),
   commands: () => import('@/views/CommandAuditView.vue'),
   alarms: () => import('@/views/AlarmCenterView.vue'),
+  users: () => import('@/views/UserListView.vue'),
 }
 
 const router = createRouter({
@@ -36,6 +37,12 @@ const router = createRouter({
           component: () => import('@/views/DeviceDetailView.vue'),
           // 不在菜单里，侧边栏高亮“设备管理”
           meta: { title: '设备详情', permission: 'device:view', activeMenu: '/devices' },
+        },
+        {
+          path: 'users/:id(\\d+)',
+          name: 'user-detail',
+          component: () => import('@/views/UserDetailView.vue'),
+          meta: { title: '用户详情', permission: 'user:view', activeMenu: '/users' },
         },
         {
           path: PASSWORD_PATH.slice(1),

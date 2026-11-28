@@ -100,6 +100,11 @@ export const ALARM_STATUS = {
   HANDLED: { text: '已处理', type: 'success' },
 } satisfies Record<string, Label>
 
+export const USER_STATUS = {
+  ACTIVE: { text: '正常', type: 'success' },
+  BANNED: { text: '已封禁', type: 'danger' },
+} satisfies Record<string, Label>
+
 export const WORK_MODE: Record<string, string> = { KEEP_ALIVE: '常在线', DEEP_SLEEP: '深度休眠' }
 
 /** 取标签，未知值原样显示，不抛错（服务端新增枚举时页面不白屏） */

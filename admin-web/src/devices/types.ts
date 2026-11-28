@@ -90,3 +90,26 @@ export interface DeviceEvent {
   rawFrame: string
   at: string
 }
+
+export interface AppUser {
+  id: number
+  nickname: string
+  phoneMasked?: string | null
+  status: 'ACTIVE' | 'BANNED'
+  ownedCount: number
+  memberCount: number
+  createdAt: string
+  lastLoginAt?: string | null
+}
+
+export interface AppUserDetail extends AppUser {
+  ownedDevices: Array<{ deviceId: number; sn: string; name?: string | null; since: string }>
+  memberDevices: Array<{
+    deviceId: number
+    sn: string
+    name?: string | null
+    validFrom: string
+    validTo?: string | null
+    status: 'ACTIVE' | 'REVOKED' | 'EXPIRED' | 'QUIT'
+  }>
+}
