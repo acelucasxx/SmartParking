@@ -1,0 +1,45 @@
+<view class="page">
+  <view wx:if="{{phase === 'loading'}}" class="placeholder">加载中…</view>
+
+  <view wx:elif="{{phase === 'error'}}" class="state">
+    <view class="state__title">加载失败</view>
+    <view class="state__desc">{{notice}}</view>
+    <button class="btn btn--primary" bindtap="load">重试</button>
+  </view>
+
+  <!-- 可接受 -->
+  <block wx:elif="{{phase === 'valid'}}">
+    <view class="invite">
+      <view class="invite__from">{{ownerNickname}} 邀请你使用</view>
+      <view class="invite__device">{{deviceName}}</view>
+      <view class="invite__rows">
+        <view class="invite__row"><text class="invite__label">有效期</text><text>{{period}}</text></view>
+        <view wx:if="{{remark}}" class="invite__row"><text class="invite__label">备注</text><text>{{remark}}</text></view>
+        <view class="invite__row"><text class="invite__label">邀请</text><text>{{expire}}</text></view>
+      </view>
+      <view class="invite__hint">接受后可以远程抬杆 / 落杆，看不到主人的手机号；主人可以随时修改有效期或撤销。</view>
+    </view>
+    <view wx:if="{{notice}}" class="notice">{{notice}}</view>
+    <button class="btn btn--primary" loading="{{accepting}}" disabled="{{accepting}}" bindtap="onAccept">接受邀请</button>
+    <button class="btn" bindtap="onHome">暂不接受</button>
+  </block>
+
+  <!-- 接受成功 -->
+  <view wx:elif="{{phase === 'accepted'}}" class="state">
+    <view class="state__icon state__icon--ok">✓</view>
+    <view class="state__title">已加入「{{deviceName}}」</view>
+    <view class="state__desc">{{acceptedText}}</view>
+    <button class="btn btn--primary" bindtap="onUse">{{acceptedDeviceId ? '去使用' : '查看我的车位'}}</button>
+  </view>
+
+  <!-- 失效态 -->
+  <view wx:else class="state">
+    <view class="state__icon">!</view>
+    <view class="state__title">{{invalid.title}}</view>
+    <view wx:if="{{deviceName}}" class="state__device">「{{deviceName}}」· {{ownerNickname}}</view>
+    <view class="state__desc">{{invalid.desc}}</view>
+    <button class="btn {{invalid.action === 'home' ? 'btn--primary' : ''}}" bindtap="onHome">
+      {{invalid.action === 'home' ? '查看我的车位' : '返回首页'}}
+    </button>
+  </view>
+</view>

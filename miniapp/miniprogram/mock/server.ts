@@ -37,6 +37,16 @@ export const MOCK_BINDABLE: Record<string, { code: string; connectMs: number | n
   SP2612000666: { code: 'K7Q2M9XB', connectMs: null },
 }
 export const MOCK_TAKEN_SN = 'SP2612000777'
+
+/** 接受邀请页（MP-07）各状态的演示 token；开发者工具里用启动参数 `token=…` 打开 pages/invite/accept */
+export const MOCK_INVITE_TOKENS = {
+  VALID: 'demoInviteValid_0000000000',
+  FUTURE: 'demoInviteFuture_000000000',
+  EXPIRED: 'demoInviteExpired_00000000',
+  ACCEPTED: 'demoInviteAccepted_0000000',
+  CANCELLED: 'demoInviteCancelled_000000',
+  ALREADY_MEMBER: 'demoInviteMember_000000000',
+} as const
 const BIND_MAX_FAILURES = 5
 const BIND_LOCK_MS = 30 * 60_000
 
@@ -109,6 +119,32 @@ export function createMockServer(now: () => number = Date.now): MockServer {
     { id: 21, deviceId: 1, remark: '妈妈', period: { type: 'RELATIVE', durationDays: 7 }, expireAt: now() + 20 * 3_600_000, createdAt: now() - 4 * 3_600_000, status: 'PENDING' },
   ]
   let nextInviteId = 22
+  const ownToken = (id: number) => `mockInviteToken${String(id).padStart(28, '0')}`
+
+  /**
+   * 别人发给当前用户的邀请（接受邀请页 MP-07）。MOCK_INVITE_TOKENS 列出各状态对应的 token。
+   * VALID / FUTURE 可接受：接受后加入一台被授权设备（FUTURE 的自定义有效期明天才开始）。
+   */
+  interface ExternalInvite {
+    token: string
+    deviceId: number
+    deviceName: string
+    sn: string
+    ownerNickname: string
+    period: Record<string, unknown>
+    remark: string | null
+    expireAt: number
+    status: 'PENDING' | 'ACCEPTED_BY_OTHER' | 'ACCEPTED_BY_ME' | 'CANCELLED'
+  }
+  const external: ExternalInvite[] = [
+    { token: MOCK_INVITE_TOKENS.VALID, deviceId: 31, deviceName: '王先生的车位', sn: 'SP2612003101', ownerNickname: '王先生', period: { type: 'RELATIVE', durationDays: 7 }, remark: '小张', expireAt: now() + 20 * 3_600_000, status: 'PENDING' },
+    { token: MOCK_INVITE_TOKENS.FUTURE, deviceId: 32, deviceName: '赵女士的车位', sn: 'SP2612003202', ownerNickname: '赵女士', period: { type: 'CUSTOM', validFrom: iso(now() + DAY), validTo: iso(now() + 8 * DAY) }, remark: null, expireAt: now() + 20 * 3_600_000, status: 'PENDING' },
+    { token: MOCK_INVITE_TOKENS.EXPIRED, deviceId: 33, deviceName: '钱先生的车位', sn: 'SP2612003303', ownerNickname: '钱先生', period: { type: 'PERMANENT' }, remark: null, expireAt: now() - 3_600_000, status: 'PENDING' },
+    { token: MOCK_INVITE_TOKENS.ACCEPTED, deviceId: 34, deviceName: '孙先生的车位', sn: 'SP2612003404', ownerNickname: '孙先生', period: { type: 'PERMANENT' }, remark: null, expireAt: now() + 3_600_000, status: 'ACCEPTED_BY_OTHER' },
+    { token: MOCK_INVITE_TOKENS.CANCELLED, deviceId: 35, deviceName: '周先生的车位', sn: 'SP2612003505', ownerNickname: '周先生', period: { type: 'PERMANENT' }, remark: null, expireAt: now() + 3_600_000, status: 'CANCELLED' },
+    // 设备 2 当前用户已是被授权人
+    { token: MOCK_INVITE_TOKENS.ALREADY_MEMBER, deviceId: 2, deviceName: '公司车位', sn: 'SP2612000456', ownerNickname: '李女士', period: { type: 'PERMANENT' }, remark: null, expireAt: now() + 3_600_000, status: 'PENDING' },
+  ]
 
   const commands: MockCommand[] = []
   /** 指令 ID → 幂等键：连点只产生一条指令 */
@@ -236,6 +272,15 @@ export function createMockServer(now: () => number = Date.now): MockServer {
       return { validFrom: from, validTo: to, period: { type: 'CUSTOM', validFrom: iso(from), validTo: iso(to) } }
     }
     throw invalid()
+  }
+
+  function inviteState(e: ExternalInvite): 'VALID' | 'EXPIRED' | 'ACCEPTED' | 'CANCELLED' | 'ALREADY_MEMBER' {
+    if (e.status === 'ACCEPTED_BY_ME') return 'ALREADY_MEMBER'
+    if (e.status === 'ACCEPTED_BY_OTHER') return 'ACCEPTED'
+    if (e.status === 'CANCELLED') return 'CANCELLED'
+    if (e.expireAt <= now()) return 'EXPIRED'
+    if (devices.some((d) => d.id === e.deviceId)) return 'ALREADY_MEMBER'
+    return 'VALID'
   }
 
   function remarkOf(raw: unknown): string | null {
@@ -444,7 +489,7 @@ export function createMockServer(now: () => number = Date.now): MockServer {
       if (liveMembers(d.id).length + liveInvites(d.id).length >= MEMBER_LIMIT) throw new MockError(ErrorCode.MEMBER_LIMIT_REACHED, undefined, 409)
       const invite: MockInvite = { id: nextInviteId++, deviceId: d.id, remark, period, expireAt: now() + DAY, createdAt: now(), status: 'PENDING' }
       invites.push(invite)
-      const token = `mockInviteToken${String(invite.id).padStart(28, '0')}`
+      const token = ownToken(invite.id)
       const name = d.name || `车位 ${d.sn}`
       return { id: invite.id, token, expireAt: iso(invite.expireAt), path: `/pages/invite/accept?token=${token}`, title: `${user.nickname}邀请你使用「${name}」` }
     })
@@ -486,6 +531,30 @@ export function createMockServer(now: () => number = Date.now): MockServer {
       if (!m || (!live && m.status !== 'REVOKED')) throw new MockError(ErrorCode.NOT_FOUND, '授权不存在或已结束', 404)
       m.status = 'REVOKED'
       return null
+    })
+    .on('GET', '/invites/:token', (ctx) => {
+      const own = invites.find((i) => ownToken(i.id) === ctx.params.token)
+      if (own) {
+        const d = devices.find((x) => x.id === own.deviceId)!
+        return { deviceName: d.name || `车位 ${d.sn}`, ownerNickname: user.nickname, period: own.period, remark: own.remark, expireAt: iso(own.expireAt), state: 'OWN_INVITE' }
+      }
+      const e = external.find((x) => x.token === ctx.params.token)
+      if (!e) throw new MockError(ErrorCode.NOT_FOUND, '邀请不存在', 404)
+      return { deviceName: e.deviceName, ownerNickname: e.ownerNickname, period: e.period, remark: e.remark, expireAt: iso(e.expireAt), state: inviteState(e) }
+    })
+    .on('POST', '/invites/:token/accept', (ctx) => {
+      if (invites.some((i) => ownToken(i.id) === ctx.params.token)) throw new MockError(ErrorCode.CANNOT_ACCEPT_OWN, undefined, 409)
+      const e = external.find((x) => x.token === ctx.params.token)
+      if (!e) throw new MockError(ErrorCode.NOT_FOUND, '邀请不存在', 404)
+      const state = inviteState(e)
+      const errors: Record<string, number> = { EXPIRED: ErrorCode.INVITE_EXPIRED, ACCEPTED: ErrorCode.INVITE_USED, CANCELLED: ErrorCode.INVITE_CANCELLED, ALREADY_MEMBER: ErrorCode.ALREADY_MEMBER }
+      if (state !== 'VALID') throw new MockError(errors[state], undefined, 409)
+      e.status = 'ACCEPTED_BY_ME'
+      const { validFrom, validTo } = parsePeriod(e.period, now())
+      const d = device({ id: e.deviceId, sn: e.sn, name: e.deviceName, role: 'MEMBER', validTo: validTo === null ? null : iso(validTo), ownerNickname: e.ownerNickname, batteryPct: 70 })
+      // 自定义有效期尚未开始：返回卡片，但车位列表要到开始时刻才显示（这里简化为先不加入列表）
+      if (validFrom <= now()) devices.push(d)
+      return card(d)
     })
     .on('GET', '/devices/:id/records', (ctx): Page<OperationRecord> => {
       settleAll()
