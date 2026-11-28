@@ -3,7 +3,7 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const { ApiClient } = require('../.test-build/api/client')
 const { ErrorCode } = require('../.test-build/api/errors')
-const { createMockServer, MOCK_SENT_MS, MOCK_DONE_MS, toIso } = require('../.test-build/mock/server')
+const { createMockServer, MOCK_SENT_MS, MOCK_DONE_MS, MOCK_TIMEOUT_MS, toIso } = require('../.test-build/mock/server')
 
 function setup() {
   let now = Date.parse('2026-11-28T10:00:00+08:00')
@@ -21,17 +21,20 @@ function setup() {
 const key = () => `key-${Math.random().toString(16).slice(2)}`
 const code = (c) => (e) => e.code === c
 
-test('登录后能拿到四台示例设备，覆盖主人 / 被授权人、在线 / 休眠 / 离线 / 停用', async () => {
+test('登录后能拿到示例设备，覆盖主人 / 被授权人、在线 / 休眠 / 离线 / 停用，以及遇阻、超时、故障的演示设备', async () => {
   const { client } = setup()
   const cards = await client.get('/devices')
-  assert.equal(cards.length, 4)
+  assert.equal(cards.length, 7)
   assert.deepEqual(
-    cards.map((c) => [c.role, c.enabled, c.onlineState]),
+    cards.map((c) => [c.role, c.enabled, c.onlineState, c.gateStatus]),
     [
-      ['OWNER', true, 'ONLINE'],
-      ['MEMBER', true, 'SLEEP'],
-      ['OWNER', true, 'OFFLINE'],
-      ['MEMBER', false, 'ONLINE'],
+      ['OWNER', true, 'ONLINE', 'CLOSED'],
+      ['MEMBER', true, 'SLEEP', 'OPENED'],
+      ['OWNER', true, 'OFFLINE', 'CLOSED'],
+      ['MEMBER', false, 'ONLINE', 'CLOSED'],
+      ['OWNER', true, 'ONLINE', 'CLOSED'],
+      ['OWNER', true, 'ONLINE', 'CLOSED'],
+      ['OWNER', true, 'ONLINE', 'FAULT'],
     ],
   )
   assert.equal(cards[2].batteryPct, null)
@@ -91,6 +94,7 @@ test('休眠、离线、停用、参数不对时拒绝控制', async () => {
   await assert.rejects(client.post('/devices/2/commands', { action: 'OPEN', idempotencyKey: key() }), code(ErrorCode.DEVICE_SLEEPING))
   await assert.rejects(client.post('/devices/3/commands', { action: 'OPEN', idempotencyKey: key() }), code(ErrorCode.DEVICE_OFFLINE))
   await assert.rejects(client.post('/devices/4/commands', { action: 'OPEN', idempotencyKey: key() }), (e) => e.code === ErrorCode.DEVICE_DISABLED && e.action === 'support')
+  await assert.rejects(client.post('/devices/7/commands', { action: 'OPEN', idempotencyKey: key() }), (e) => e.code === ErrorCode.DEVICE_FAULT && e.action === 'support')
   await assert.rejects(client.post('/devices/1/commands', { action: 'JUMP', idempotencyKey: key() }), code(ErrorCode.BAD_REQUEST))
   await assert.rejects(client.post('/devices/1/commands', { action: 'OPEN', idempotencyKey: 'short' }), code(ErrorCode.BAD_REQUEST))
   await assert.rejects(client.get('/devices/99'), (e) => e.code === ErrorCode.NOT_FOUND && e.action === 'leave')
@@ -124,6 +128,40 @@ test('未实现的接口明确报“mock 未实现”；不带 token 返回 401'
   assert.equal(anon.body.code, ErrorCode.UNAUTHORIZED)
   const login = server.handle({ method: 'POST', path: '/auth/login', headers: {}, data: { code: 'fail' } })
   assert.equal(login.body.code, ErrorCode.WX_LOGIN_FAILED)
+})
+
+test('演示设备：5 遇阻失败、6 超时，结束后都释放设备', async () => {
+  const { client, tick } = setup()
+  const a = await client.post('/devices/5/commands', { action: 'OPEN', idempotencyKey: key() })
+  const b = await client.post('/devices/6/commands', { action: 'OPEN', idempotencyKey: key() })
+  tick(MOCK_DONE_MS)
+  const failed = await client.get(`/devices/5/commands/${a.id}`)
+  assert.deepEqual([failed.status, failed.resultCode, failed.gateStatus, failed.durationMs], ['FAILED', 'OBSTRUCTED', 'STOPPED', MOCK_DONE_MS])
+  assert.equal(failed.resultMessage, '闸杆遇阻，请检查现场')
+  assert.equal((await client.get('/devices/5/status')).pendingCommandId, null)
+  assert.equal((await client.get('/devices/5')).lastOperation.result, 'FAILED')
+  assert.equal((await client.get(`/devices/6/commands/${b.id}`)).status, 'EXECUTING')
+  tick(MOCK_TIMEOUT_MS - MOCK_DONE_MS - 1)
+  assert.equal((await client.get(`/devices/6/commands/${b.id}`)).status, 'EXECUTING')
+  tick(1)
+  const timeout = await client.get(`/devices/6/commands/${b.id}`)
+  assert.deepEqual([timeout.status, timeout.resultCode, timeout.gateStatus, timeout.durationMs], ['TIMEOUT', 'TIMEOUT', 'UNKNOWN', MOCK_TIMEOUT_MS])
+  assert.equal((await client.get('/devices/6/status')).pendingCommandId, null)
+  assert.equal((await client.get('/devices/6')).lastOperation.result, 'TIMEOUT')
+})
+
+test('返回的是副本：调用方改了不影响 mock 数据', async () => {
+  const { client } = setup()
+  const d = await client.get('/devices/1')
+  d.gateStatus = 'OPENED'
+  d.name = 'x'
+  assert.equal((await client.get('/devices/1')).gateStatus, 'CLOSED')
+  const cmd = await client.post('/devices/1/commands', { action: 'OPEN', idempotencyKey: 'copy-key-1' })
+  cmd.status = 'SUCCESS'
+  const got = await client.get(`/devices/1/commands/${cmd.id}`)
+  assert.equal(got.status, 'SENT')
+  got.status = 'FAILED'
+  assert.equal((await client.get(`/devices/1/commands/${cmd.id}`)).status, 'SENT')
 })
 
 test('toIso 输出东八区', () => {

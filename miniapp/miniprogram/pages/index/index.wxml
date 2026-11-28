@@ -1,1 +1,8 @@
-<view class="placeholder">我的车位列表（MP-03）：待实现</view>
+<view wx:if="{{error}}" class="placeholder" bindtap="load">{{error}}，点击重试</view>
+<view wx:else class="home">
+  <view wx:for="{{items}}" wx:key="id" class="home__item" data-id="{{item.id}}" bindtap="onOpen">
+    <text>{{item.title}}</text>
+    <text class="home__badge">{{item.badge}} ›</text>
+  </view>
+  <view class="placeholder">车位首页卡片与快捷控制（MP-03）：待实现</view>
+</view>

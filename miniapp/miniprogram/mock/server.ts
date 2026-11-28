@@ -17,12 +17,18 @@ import { MockError, MockRouter } from './router'
 /**
  * 模拟后端：内存里的几台设备、指令、消息，覆盖首页、控制页、消息中心需要的接口与常见异常态。
  * 指令按时间推进：下发后 0.5 秒“已下发”，2 秒内“执行中”（闸杆动作中），2 秒后到位成功。
+ * 演示设备 5–7 用来看控制页的异常态：5 每次都遇阻，6 一直不到位直到超时，7 电机故障。
  * 其余接口在对应页面任务里补。
  */
 
 /** 指令从下发到到位的模拟耗时 */
 export const MOCK_SENT_MS = 500
 export const MOCK_DONE_MS = 2000
+/** 与服务端一致：15 秒未到位判超时 */
+export const MOCK_TIMEOUT_MS = 15_000
+
+/** 演示设备的指令结局 */
+type Outcome = 'OBSTRUCTED' | 'TIMEOUT'
 
 interface MockDevice extends DeviceDetail {
   signalLevel: number | null
@@ -64,7 +70,14 @@ export function createMockServer(now: () => number = Date.now): MockServer {
     }),
     device({ id: 3, sn: 'SP2612000789', name: null, role: 'OWNER', onlineState: 'OFFLINE', batteryPct: null }),
     device({ id: 4, sn: 'SP2612000999', name: '老小区车位', role: 'MEMBER', enabled: false, ownerNickname: '王先生' }),
+    device({ id: 5, sn: 'SP2612000501', name: '演示：遇阻', role: 'OWNER', batteryPct: 60 }),
+    device({ id: 6, sn: 'SP2612000602', name: '演示：超时', role: 'OWNER', batteryPct: 60 }),
+    device({ id: 7, sn: 'SP2612000703', name: '演示：故障', role: 'OWNER', gateStatus: 'FAULT', batteryPct: 60 }),
   ]
+  const outcomes = new Map<number, Outcome>([
+    [5, 'OBSTRUCTED'],
+    [6, 'TIMEOUT'],
+  ])
 
   const commands: MockCommand[] = []
   /** 指令 ID → 幂等键：连点只产生一条指令 */
@@ -110,7 +123,20 @@ export function createMockServer(now: () => number = Date.now): MockServer {
     if (cmd.status === 'SUCCESS' || cmd.status === 'FAILED' || cmd.status === 'TIMEOUT') return cmd
     const elapsed = now() - c.issuedMs
     const d = devices.find((x) => x.id === cmd.deviceId)
-    if (elapsed >= MOCK_DONE_MS) {
+    const outcome = outcomes.get(cmd.deviceId)
+    const finish = (status: 'FAILED' | 'TIMEOUT', resultCode: 'OBSTRUCTED' | 'TIMEOUT', message: string, at: number, gate: GateStatus) => {
+      Object.assign(cmd, { status, resultCode, resultMessage: message, gateStatus: gate, finishedAt: iso(c.issuedMs + at), durationMs: at })
+      if (d) {
+        d.gateStatus = gate
+        d.pendingCommandId = null
+        d.lastOperation = record(c)
+      }
+    }
+    if (outcome === 'OBSTRUCTED' && elapsed >= MOCK_DONE_MS) {
+      finish('FAILED', 'OBSTRUCTED', '闸杆遇阻，请检查现场', MOCK_DONE_MS, 'STOPPED')
+    } else if (outcome === 'TIMEOUT' && elapsed >= MOCK_TIMEOUT_MS) {
+      finish('TIMEOUT', 'TIMEOUT', '设备长时间未到位，请查看现场', MOCK_TIMEOUT_MS, 'UNKNOWN')
+    } else if (!outcome && elapsed >= MOCK_DONE_MS) {
       const target: GateStatus = cmd.action === 'OPEN' ? 'OPENED' : 'CLOSED'
       cmd.status = 'SUCCESS'
       cmd.gateStatus = target
@@ -190,7 +216,7 @@ export function createMockServer(now: () => number = Date.now): MockServer {
     })
     .on('GET', '/devices/:id', (ctx) => {
       settleAll()
-      return find(ctx.params.id)
+      return copy(find(ctx.params.id))
     })
     .on('GET', '/devices/:id/status', (ctx) => {
       settleAll()
@@ -212,7 +238,7 @@ export function createMockServer(now: () => number = Date.now): MockServer {
         throw new MockError(ErrorCode.BAD_REQUEST)
       }
       const same = commands.find((c) => c.command.deviceId === d.id && idempotency.get(c.command.id) === key)
-      if (same) return advance(same)
+      if (same) return copy(advance(same))
       if (!d.enabled) throw new MockError(ErrorCode.DEVICE_DISABLED, undefined, 403)
       if (d.gateStatus === 'FAULT') throw new MockError(ErrorCode.DEVICE_FAULT, undefined, 409)
       if (d.onlineState === 'OFFLINE') throw new MockError(ErrorCode.DEVICE_OFFLINE, undefined, 409)
@@ -241,13 +267,13 @@ export function createMockServer(now: () => number = Date.now): MockServer {
       }
       commands.push({ command, issuedMs, userId: user.id })
       idempotency.set(command.id, key)
-      return command
+      return copy(command)
     })
     .on('GET', '/devices/:id/commands/:commandId', (ctx) => {
       const d = find(ctx.params.id)
       const c = commands.find((x) => x.command.deviceId === d.id && String(x.command.id) === ctx.params.commandId)
       if (!c) throw new MockError(ErrorCode.NOT_FOUND, '指令不存在', 404)
-      return advance(c)
+      return copy(advance(c))
     })
     .on('GET', '/devices/:id/records', (ctx): Page<OperationRecord> => {
       settleAll()
@@ -278,6 +304,11 @@ function message(
   createdMs: number,
 ): Message {
   return { id, type, deviceId, title, content, read, createdAt: toIso(createdMs) }
+}
+
+/** 返回副本，调用方改了也不影响 mock 里的数据（与真实接口一致） */
+function copy<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T
 }
 
 function page<T>(all: T[], query: Record<string, string>): Page<T> {

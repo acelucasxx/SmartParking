@@ -49,16 +49,36 @@ export interface Battery {
   text: string
   /** 0–4 格，未知为 -1 */
   bars: number
-  /** ≤ 20% 显示红色并提示充电 */
-  low: boolean
 }
 
-export const LOW_BATTERY_PCT = 20
-
+/** 电量：只显示百分比和图标，不做低电量提醒（PRD 6.2） */
 export function battery(pct: number | null | undefined): Battery {
-  if (pct === null || pct === undefined || !Number.isFinite(pct)) return { text: '—', bars: -1, low: false }
+  if (pct === null || pct === undefined || !Number.isFinite(pct)) return { text: '—', bars: -1 }
   const value = Math.min(100, Math.max(0, Math.round(pct)))
-  return { text: `${value}%`, bars: value === 0 ? 0 : Math.ceil(value / 25), low: value <= LOW_BATTERY_PCT }
+  return { text: `${value}%`, bars: value === 0 ? 0 : Math.ceil(value / 25) }
+}
+
+export interface Signal {
+  /** 强 / 中 / 弱 / 无信号 / — */
+  text: string
+  /** 0–4 格，未知为 -1 */
+  bars: number
+}
+
+/** 4G 信号（CSQ 0–31，99 为未知）。≥ 20 强，≥ 10 中，≥ 1 弱 */
+export function signal(level: number | null | undefined): Signal {
+  if (level === null || level === undefined || !Number.isFinite(level) || level < 0 || level > 31) return { text: '—', bars: -1 }
+  if (level >= 20) return { text: '强', bars: level >= 26 ? 4 : 3 }
+  if (level >= 10) return { text: '中', bars: 2 }
+  if (level >= 1) return { text: '弱', bars: 1 }
+  return { text: '无信号', bars: 0 }
+}
+
+/** 车位有无车；未知为 — */
+export function occupancy(occupied: boolean | null | undefined): string {
+  if (occupied === true) return '有车'
+  if (occupied === false) return '无车'
+  return '—'
 }
 
 /** 卡片标题：没起名时用 SN 后 4 位 */
