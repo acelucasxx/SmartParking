@@ -194,6 +194,10 @@ public class InviteService {
         if (!device.isOwner(invite.inviterId())) {
             return State.CANCELLED;
         }
+        // 主人被封禁（PRD 5.8②）：其发出的邀请暂不可接受，解封后恢复
+        if (device.ownerBanned()) {
+            return State.CANCELLED;
+        }
         if (isActiveMember(device.id(), viewerId, now)) {
             return State.ALREADY_MEMBER;
         }
@@ -209,7 +213,7 @@ public class InviteService {
      *   <li>token 不存在 10004
      *   <li>自己发出的邀请、或自己就是主人 30016
      *   <li>已撤回 / 已作废 30014；已被接受 30013（接受人是自己时 30015）；已过期（含自定义有效期已结束）30012
-     *   <li>发出人已不是当前主人 30014
+     *   <li>发出人已不是当前主人，或其账号已被封禁 30014
      *   <li>设备已禁用 20002
      *   <li>自己已是生效中的被授权人 30015
      *   <li>名额：其余生效成员与待接受邀请（不含本邀请）已达上限 30010
@@ -246,6 +250,9 @@ public class InviteService {
             }
             if (!device.isOwner(invite.inviterId())) {
                 throw new BizException(ErrorCode.INVITE_CANCELLED, "设备主人已变更，邀请已失效");
+            }
+            if (device.ownerBanned()) {
+                throw new BizException(ErrorCode.INVITE_CANCELLED, "设备主人账号已停用，邀请暂不可用");
             }
             if (!device.enabled()) {
                 throw new BizException(ErrorCode.DEVICE_DISABLED);
@@ -319,7 +326,14 @@ public class InviteService {
     // ------------------------------------------------------------
 
     private record DeviceRow(
-            long id, String sn, String name, boolean enabled, String bindStatus, Long ownerId, String ownerNickname) {
+            long id,
+            String sn,
+            String name,
+            boolean enabled,
+            String bindStatus,
+            Long ownerId,
+            String ownerNickname,
+            boolean ownerBanned) {
 
         boolean isOwner(long userId) {
             return "BOUND".equals(bindStatus) && ownerId != null && ownerId == userId;
@@ -338,7 +352,7 @@ public class InviteService {
 
     private static final String SELECT_DEVICE =
             """
-            SELECT d.id, d.sn, d.name, d.enabled, d.bind_status, d.owner_user_id, u.nickname
+            SELECT d.id, d.sn, d.name, d.enabled, d.bind_status, d.owner_user_id, u.nickname, u.status AS owner_status
             FROM device d LEFT JOIN app_user u ON u.id = d.owner_user_id""";
 
     private static final String SELECT_INVITE =
@@ -366,7 +380,8 @@ public class InviteService {
                         rs.getBoolean("enabled"),
                         rs.getString("bind_status"),
                         rs.getObject("owner_user_id", Long.class),
-                        rs.getString("nickname")))
+                        rs.getString("nickname"),
+                        "BANNED".equals(rs.getString("owner_status"))))
                 .optional();
     }
 

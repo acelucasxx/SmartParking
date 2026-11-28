@@ -173,7 +173,8 @@ public class TransferService {
             case "EXPIRED" -> State.EXPIRED;
             default -> !card.expireAt().isAfter(now)
                     ? State.EXPIRED
-                    : device.isOwner(card.fromUser()) ? State.VALID : State.CANCELLED;
+                    // 发起人已不是主人，或主人被封禁（PRD 5.8②，解封后恢复）
+                    : device.isOwner(card.fromUser()) && !device.ownerBanned() ? State.VALID : State.CANCELLED;
         };
     }
 
@@ -184,7 +185,7 @@ public class TransferService {
      *   <li>token 不存在 10004
      *   <li>自己发起的、或自己已是主人 30016
      *   <li>已取消 / 已作废 30022；已被接收 30021；已过期 30020
-     *   <li>发起人已不是当前主人 30022
+     *   <li>发起人已不是当前主人，或其账号已被封禁 30022
      *   <li>设备已禁用 20002
      * </ol>
      *
@@ -214,6 +215,9 @@ public class TransferService {
             }
             if (!device.isOwner(card.fromUser())) {
                 throw new BizException(ErrorCode.TRANSFER_CANCELLED, "设备主人已变更，转让已失效");
+            }
+            if (device.ownerBanned()) {
+                throw new BizException(ErrorCode.TRANSFER_CANCELLED, "设备主人账号已停用，转让暂不可用");
             }
             if (!device.enabled()) {
                 throw new BizException(ErrorCode.DEVICE_DISABLED);
@@ -262,7 +266,14 @@ public class TransferService {
     // ------------------------------------------------------------
 
     private record Device(
-            long id, String sn, String name, boolean enabled, String bindStatus, Long ownerId, String ownerNickname) {
+            long id,
+            String sn,
+            String name,
+            boolean enabled,
+            String bindStatus,
+            Long ownerId,
+            String ownerNickname,
+            boolean ownerBanned) {
 
         boolean isOwner(long userId) {
             return "BOUND".equals(bindStatus) && ownerId != null && ownerId == userId;
@@ -304,7 +315,8 @@ public class TransferService {
     private Optional<Device> device(long deviceId) {
         return jdbc.sql(
                         """
-                        SELECT d.id, d.sn, d.name, d.enabled, d.bind_status, d.owner_user_id, u.nickname
+                        SELECT d.id, d.sn, d.name, d.enabled, d.bind_status, d.owner_user_id, u.nickname,
+                               u.status AS owner_status
                         FROM device d LEFT JOIN app_user u ON u.id = d.owner_user_id WHERE d.id = ?""")
                 .param(deviceId)
                 .query((rs, n) -> new Device(
@@ -314,7 +326,8 @@ public class TransferService {
                         rs.getBoolean("enabled"),
                         rs.getString("bind_status"),
                         rs.getObject("owner_user_id", Long.class),
-                        rs.getString("nickname")))
+                        rs.getString("nickname"),
+                        "BANNED".equals(rs.getString("owner_status"))))
                 .optional();
     }
 

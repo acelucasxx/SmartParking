@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/** 后台运维操作（BIZ-10） */
+/** 后台运维操作（BIZ-10 设备、BIZ-16 用户封禁） */
 @Configuration(proxyBeanMethods = false)
 public class OpsConfiguration {
 
@@ -25,5 +25,10 @@ public class OpsConfiguration {
             SelfCheckService selfCheck,
             ApplicationEventPublisher events) {
         return new AdminDeviceOps(jdbc, tx, codes, attempts, release, selfCheck, events, Clock.systemUTC());
+    }
+
+    @Bean
+    AdminUserOps adminUserOps(JdbcClient jdbc) {
+        return new AdminUserOps(jdbc);
     }
 }
