@@ -102,14 +102,6 @@ test('联网判定：只认绑定前后窗口内的状态帧；60 秒未到为�
   assert.equal(flow.connection(st(at + 70_000), at, at + 70_000), 'connected', '超时后联网仍转为成功')
 })
 
-test('名称与车位号：最多 32 个字，可留空', () => {
-  assert.equal(flow.settingsProblem('', ''), null)
-  assert.equal(flow.settingsProblem('家'.repeat(32), ' B2-108 '), null)
-  assert.equal(flow.settingsProblem(` ${'家'.repeat(32)} `, ''), null, '首尾空白不计')
-  assert.equal(flow.settingsProblem('家'.repeat(33), ''), '名称最多 32 个字')
-  assert.equal(flow.settingsProblem('', 'B'.repeat(33)), '车位号最多 32 个字')
-})
-
 // ------------------------------------------------------------ mock 接口与等待联网
 
 function setup() {

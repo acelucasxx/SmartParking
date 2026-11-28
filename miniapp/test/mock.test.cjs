@@ -123,7 +123,7 @@ test('消息：倒序分页、未读数、按 ID 或全部标记已读', async (
 
 test('未实现的接口明确报“mock 未实现”；不带 token 返回 401', async () => {
   const { client, server } = setup()
-  await assert.rejects(client.post('/devices/1/unbind', {}), (e) => e.code === ErrorCode.NOT_FOUND && e.message === 'mock 未实现：POST /devices/1/unbind')
+  await assert.rejects(client.post('/devices/1/ble-tickets', {}), (e) => e.code === ErrorCode.NOT_FOUND && e.message === 'mock 未实现：POST /devices/1/ble-tickets')
   const anon = server.handle({ method: 'GET', path: '/devices', headers: {} })
   assert.equal(anon.status, 401)
   assert.equal(anon.body.code, ErrorCode.UNAUTHORIZED)

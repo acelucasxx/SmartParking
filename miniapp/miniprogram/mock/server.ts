@@ -121,14 +121,14 @@ export function createMockServer(now: () => number = Date.now): MockServer {
 
   // 成员管理（MP-06）：设备 1 有两位成员（永久 / 尚未开始）和一张待接受邀请，名额上限 5
   interface MockMember { id: number; deviceId: number; nickname: string; remark: string | null; validFrom: number; validTo: number | null; status: 'ACTIVE' | 'REVOKED' | 'EXPIRED' | 'QUIT' }
-  interface MockInvite { id: number; deviceId: number; remark: string | null; period: Record<string, unknown>; expireAt: number; createdAt: number; status: 'PENDING' | 'CANCELLED' }
+  interface MockInvite { id: number; deviceId: number; deviceName: string; remark: string | null; period: Record<string, unknown>; expireAt: number; createdAt: number; status: 'PENDING' | 'CANCELLED' }
   const MEMBER_LIMIT = 5
   const members: MockMember[] = [
     { id: 11, deviceId: 1, nickname: '张大爷', remark: '爸爸', validFrom: now() - 3 * DAY, validTo: null, status: 'ACTIVE' },
     { id: 12, deviceId: 1, nickname: '李阿姨', remark: '保洁', validFrom: now() + DAY, validTo: now() + 8 * DAY, status: 'ACTIVE' },
   ]
   const invites: MockInvite[] = [
-    { id: 21, deviceId: 1, remark: '妈妈', period: { type: 'RELATIVE', durationDays: 7 }, expireAt: now() + 20 * 3_600_000, createdAt: now() - 4 * 3_600_000, status: 'PENDING' },
+    { id: 21, deviceId: 1, deviceName: '家里车位', remark: '妈妈', period: { type: 'RELATIVE', durationDays: 7 }, expireAt: now() + 20 * 3_600_000, createdAt: now() - 4 * 3_600_000, status: 'PENDING' },
   ]
   let nextInviteId = 22
   const ownToken = (id: number) => `mockInviteToken${String(id).padStart(28, '0')}`
@@ -149,7 +149,7 @@ export function createMockServer(now: () => number = Date.now): MockServer {
     status: 'PENDING' | 'ACCEPTED_BY_OTHER' | 'ACCEPTED_BY_ME' | 'CANCELLED'
   }
   // 转让（MP-08）：自己发起的按设备记一张；别人发来的见 MOCK_TRANSFER_TOKENS
-  interface OwnTransfer { id: number; deviceId: number; token: string; expireAt: number; createdAt: number; status: 'PENDING' | 'CANCELLED' }
+  interface OwnTransfer { id: number; deviceId: number; deviceName: string; sn: string; token: string; expireAt: number; createdAt: number; status: 'PENDING' | 'CANCELLED' }
   interface IncomingTransfer { token: string; deviceId: number; deviceName: string; sn: string; fromNickname: string; expireAt: number; status: 'PENDING' | 'ACCEPTED_BY_OTHER' | 'CANCELLED' }
   const ownTransfers: OwnTransfer[] = []
   let nextTransferId = 51
@@ -410,8 +410,18 @@ export function createMockServer(now: () => number = Date.now): MockServer {
     .on('PATCH', '/devices/:id', (ctx) => {
       const d = find(ctx.params.id)
       if (d.role !== 'OWNER') throw new MockError(ErrorCode.NOT_OWNER, undefined, 403)
-      if (typeof ctx.data.name === 'string') d.name = ctx.data.name.trim() || null
-      if (typeof ctx.data.spaceNo === 'string') d.spaceNo = ctx.data.spaceNo.trim() || null
+      // 与服务端一致：名称去首尾空白后 1–32 个字符（不能清空）；车位号空串表示清空
+      if (!('name' in ctx.data) && !('spaceNo' in ctx.data)) throw new MockError(ErrorCode.BAD_REQUEST, '至少修改名称或车位号中的一项')
+      if ('name' in ctx.data) {
+        const n = String(ctx.data.name ?? '').trim()
+        if (!n || Array.from(n).length > 32) throw new MockError(ErrorCode.BAD_REQUEST, '名称长度应为 1–32 个字符')
+        d.name = n
+      }
+      if ('spaceNo' in ctx.data) {
+        const sp = String(ctx.data.spaceNo ?? '').trim()
+        if (Array.from(sp).length > 32) throw new MockError(ErrorCode.BAD_REQUEST, '车位号至多 32 个字符')
+        d.spaceNo = sp || null
+      }
       return card(d)
     })
     .on('POST', '/devices/:id/commands', (ctx) => {
@@ -522,7 +532,7 @@ export function createMockServer(now: () => number = Date.now): MockServer {
       const { period } = parsePeriod(ctx.data.period, now())
       const remark = remarkOf(ctx.data.remark)
       if (liveMembers(d.id).length + liveInvites(d.id).length >= MEMBER_LIMIT) throw new MockError(ErrorCode.MEMBER_LIMIT_REACHED, undefined, 409)
-      const invite: MockInvite = { id: nextInviteId++, deviceId: d.id, remark, period, expireAt: now() + DAY, createdAt: now(), status: 'PENDING' }
+      const invite: MockInvite = { id: nextInviteId++, deviceId: d.id, deviceName: d.name || `车位 ${d.sn}`, remark, period, expireAt: now() + DAY, createdAt: now(), status: 'PENDING' }
       invites.push(invite)
       const token = ownToken(invite.id)
       const name = d.name || `车位 ${d.sn}`
@@ -570,8 +580,7 @@ export function createMockServer(now: () => number = Date.now): MockServer {
     .on('GET', '/invites/:token', (ctx) => {
       const own = invites.find((i) => ownToken(i.id) === ctx.params.token)
       if (own) {
-        const d = devices.find((x) => x.id === own.deviceId)!
-        return { deviceName: d.name || `车位 ${d.sn}`, ownerNickname: user.nickname, period: own.period, remark: own.remark, expireAt: iso(own.expireAt), state: 'OWN_INVITE' }
+        return { deviceName: own.deviceName, ownerNickname: user.nickname, period: own.period, remark: own.remark, expireAt: iso(own.expireAt), state: 'OWN_INVITE' }
       }
       const e = external.find((x) => x.token === ctx.params.token)
       if (!e) throw new MockError(ErrorCode.NOT_FOUND, '邀请不存在', 404)
@@ -601,7 +610,7 @@ export function createMockServer(now: () => number = Date.now): MockServer {
       if (!d.enabled) throw new MockError(ErrorCode.DEVICE_DISABLED, undefined, 403)
       if (livePending(d.id)) throw new MockError(ErrorCode.TRANSFER_PENDING_EXISTS, undefined, 409)
       const id = nextTransferId++
-      const t: OwnTransfer = { id, deviceId: d.id, token: `mockTransferToken${String(id).padStart(26, '0')}`, expireAt: now() + DAY, createdAt: now(), status: 'PENDING' }
+      const t: OwnTransfer = { id, deviceId: d.id, deviceName: d.name || `车位 ${d.sn}`, sn: d.sn, token: `mockTransferToken${String(id).padStart(26, '0')}`, expireAt: now() + DAY, createdAt: now(), status: 'PENDING' }
       ownTransfers.push(t)
       return { id, token: t.token, expireAt: iso(t.expireAt), path: `/pages/transfer/accept?token=${t.token}`, title: `${user.nickname}向你转让「${d.name || `车位 ${d.sn}`}」` }
     })
@@ -615,9 +624,9 @@ export function createMockServer(now: () => number = Date.now): MockServer {
     .on('GET', '/transfers/:token', (ctx) => {
       const own = ownTransfers.find((t) => t.token === ctx.params.token)
       if (own) {
-        const d = devices.find((x) => x.id === own.deviceId)!
+        // 卡片生成时记下设备名称与 SN：解绑后设备已不在列表里，预览仍可显示（为已作废）
         const state = own.status === 'CANCELLED' ? 'CANCELLED' : own.expireAt <= now() ? 'EXPIRED' : 'OWN_TRANSFER'
-        return { deviceName: d.name || `车位 ${d.sn}`, sn: d.sn, fromNickname: user.nickname, expireAt: iso(own.expireAt), state }
+        return { deviceName: own.deviceName, sn: own.sn, fromNickname: user.nickname, expireAt: iso(own.expireAt), state }
       }
       const t = incoming.find((x) => x.token === ctx.params.token)
       if (!t) throw new MockError(ErrorCode.NOT_FOUND, '转让不存在', 404)
@@ -639,6 +648,21 @@ export function createMockServer(now: () => number = Date.now): MockServer {
       const d = device({ id: t.deviceId, sn: t.sn, name: t.deviceName, role: 'OWNER', batteryPct: 55 })
       devices.push(d)
       return card(d)
+    })
+    .on('POST', '/devices/:id/unbind', (ctx) => {
+      const d = ownerDevice(ctx.params.id)
+      // 级联：作废待接受邀请与进行中的转让，被授权人全部撤销，设备回到待激活（从我的车位移除）
+      for (const i of invites) if (i.deviceId === d.id && i.status === 'PENDING') i.status = 'CANCELLED'
+      for (const t of ownTransfers) if (t.deviceId === d.id && t.status === 'PENDING') t.status = 'CANCELLED'
+      for (const m of members) if (m.deviceId === d.id && m.status === 'ACTIVE') m.status = 'REVOKED'
+      devices.splice(devices.indexOf(d), 1)
+      return null
+    })
+    .on('DELETE', '/devices/:id/membership', (ctx) => {
+      const d = find(ctx.params.id)
+      if (d.role === 'OWNER') throw new MockError(ErrorCode.BAD_REQUEST, '主人请使用解绑', 400)
+      devices.splice(devices.indexOf(d), 1)
+      return null
     })
     .on('GET', '/devices/:id/records', (ctx): Page<OperationRecord> => {
       settleAll()

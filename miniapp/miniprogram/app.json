@@ -13,7 +13,8 @@
     "pages/members/invite",
     "pages/invite/accept",
     "pages/transfer/start",
-    "pages/transfer/accept"
+    "pages/transfer/accept",
+    "pages/device/settings"
   ],
   "window": {
     "navigationBarTitleText": "智能车位",

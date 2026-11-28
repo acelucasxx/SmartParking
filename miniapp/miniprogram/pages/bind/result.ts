@@ -1,7 +1,8 @@
 import { api, isApiError } from '../../api/index'
 import type { DeviceCard, DeviceDetail } from '../../api/types'
 import { ConnectWatcher, type ConnectState } from '../../bind/connect'
-import { NAME_MAX, settingsProblem } from '../../bind/flow'
+import { NAME_MAX } from '../../bind/flow'
+import { devicePatch } from '../../device/settings'
 import { HOME_PAGE } from '../../auth/flow'
 
 /**
@@ -71,16 +72,15 @@ Page({
   /** 保存名称与车位号（都可留空，之后在设备设置里改），然后进入控制页 */
   async onDone() {
     if (this.data.saving) return
-    const problem = settingsProblem(this.data.name, this.data.spaceNo)
-    if (problem) {
-      this.setData({ notice: problem })
+    // 刚绑定的设备没有名称和车位号：只发填了的字段（服务端不接受空名称）
+    const built = devicePatch({}, this.data.name, this.data.spaceNo)
+    if (!built.ok) {
+      this.setData({ notice: built.message })
       return
     }
-    const name = this.data.name.trim()
-    const spaceNo = this.data.spaceNo.trim()
     this.setData({ saving: true })
     try {
-      if (name || spaceNo) await api.patch<DeviceCard>(`/devices/${this.data.id}`, { name, spaceNo })
+      if (built.patch) await api.patch<DeviceCard>(`/devices/${this.data.id}`, built.patch)
       wx.redirectTo({ url: `/pages/device/device?id=${this.data.id}` })
     } catch (e) {
       this.setData({ notice: isApiError(e) ? e.message : '保存失败，请重试' })
