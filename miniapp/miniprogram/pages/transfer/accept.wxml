@@ -1,0 +1,49 @@
+<view class="page">
+  <view wx:if="{{phase === 'loading'}}" class="placeholder">加载中…</view>
+
+  <view wx:elif="{{phase === 'error'}}" class="state">
+    <view class="state__title">加载失败</view>
+    <view class="state__desc">{{notice}}</view>
+    <button class="btn btn--primary" bindtap="load">重试</button>
+  </view>
+
+  <block wx:elif="{{phase === 'valid'}}">
+    <view class="card">
+      <view class="card__from">{{fromNickname}} 向你转让</view>
+      <view class="card__device">{{deviceName}}</view>
+      <view class="card__row"><text class="card__label">SN</text><text>{{sn}}</text></view>
+      <view class="card__row"><text class="card__label">卡片</text><text>{{expire}}</text></view>
+      <view class="card__notes">
+        <view wx:for="{{notes}}" wx:key="*this" class="note">• {{item}}</view>
+      </view>
+    </view>
+    <view wx:if="{{notice}}" class="notice">{{notice}}</view>
+    <button class="btn btn--primary" bindtap="onAccept">确认接收</button>
+    <button class="btn" bindtap="onHome">暂不接收</button>
+  </block>
+
+  <view wx:elif="{{phase === 'accepted'}}" class="state">
+    <view class="state__icon state__icon--ok">✓</view>
+    <view class="state__title">你已成为「{{deviceName}}」的主人</view>
+    <view class="state__desc">可以在设备页邀请家人、修改名称和车位号。</view>
+    <button class="btn btn--primary" bindtap="onUse">去使用</button>
+  </view>
+
+  <view wx:else class="state">
+    <view class="state__icon">!</view>
+    <view class="state__title">{{invalid.title}}</view>
+    <view wx:if="{{deviceName}}" class="state__device">「{{deviceName}}」· {{fromNickname}}</view>
+    <view class="state__desc">{{invalid.desc}}</view>
+    <button class="btn" bindtap="onHome">返回首页</button>
+  </view>
+
+  <confirm-dialog
+    show="{{confirmShow}}"
+    title="确认接收"
+    content="接收后你将成为主人，原主人和他的家人将失去权限。"
+    confirm-text="确认接收"
+    loading="{{accepting}}"
+    bind:confirm="onConfirm"
+    bind:cancel="onConfirmCancel"
+  />
+</view>

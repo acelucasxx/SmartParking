@@ -1,0 +1,49 @@
+<view class="page">
+  <view wx:if="{{phase === 'loading'}}" class="placeholder">加载中…</view>
+  <view wx:elif="{{phase === 'error'}}" class="placeholder" bindtap="load">{{error}}，点击重试</view>
+
+  <!-- 风险提示 -->
+  <block wx:elif="{{phase === 'intro'}}">
+    <view class="card">
+      <view class="card__title">转让前请确认</view>
+      <view wx:for="{{risks}}" wx:key="*this" class="risk">
+        <text class="risk__dot">•</text><text>{{item}}</text>
+      </view>
+    </view>
+    <view class="agree" bindtap="onToggleAgree">
+      <view class="agree__box {{agreed ? 'agree__box--on' : ''}}">{{agreed ? '✓' : ''}}</view>
+      <text>我已了解转让的影响</text>
+    </view>
+    <view wx:if="{{notice}}" class="notice">{{notice}}</view>
+    <button class="btn btn--danger" bindtap="onStart">生成转让卡片</button>
+  </block>
+
+  <!-- 进行中 -->
+  <view wx:elif="{{phase === 'pending'}}" class="state">
+    <view class="state__title">转让进行中</view>
+    <view class="state__desc">转让卡片已发出，{{pendingExpire}}，接收人打开卡片确认后即完成转让。卡片只能在生成时发送一次，如需重发请先取消再重新发起。</view>
+    <button class="btn" bindtap="onCancelTransfer">取消转让</button>
+  </view>
+
+  <!-- 已生成卡片 -->
+  <view wx:else class="state">
+    <view class="state__icon">✓</view>
+    <view class="state__title">转让卡片已生成</view>
+    <view class="state__desc">{{card.title}}</view>
+    <view class="state__desc">卡片 24 小时内有效，只能被一人接收。离开本页后无法再次发送，如需重发请先取消。</view>
+    <button class="btn btn--primary" open-type="share">发送给接收人</button>
+    <button class="btn" bindtap="onDone">完成</button>
+  </view>
+
+  <confirm-dialog
+    show="{{confirm.show}}"
+    title="{{confirm.title}}"
+    content="{{confirm.content}}"
+    confirm-text="{{confirm.confirmText}}"
+    countdown="{{confirm.countdown}}"
+    danger
+    loading="{{busy}}"
+    bind:confirm="onDialogConfirm"
+    bind:cancel="onDialogCancel"
+  />
+</view>

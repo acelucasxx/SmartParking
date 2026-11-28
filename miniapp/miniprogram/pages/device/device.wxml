@@ -61,6 +61,10 @@
       <text>成员管理</text>
       <text class="device__last-more">邀请家人、修改有效期 ›</text>
     </view>
+    <view wx:if="{{vm.isOwner}}" class="device__entry device__entry--next" bindtap="onTransfer">
+      <text>转让设备</text>
+      <text class="device__last-more">转给他人，不需要到现场 ›</text>
+    </view>
 
     <view class="device__last" bindtap="onRecords">
       <view class="device__last-label">最近一次操作</view>
