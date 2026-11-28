@@ -23,6 +23,7 @@
     "miniprogram/bind/connect.ts",
     "miniprogram/members/period.ts",
     "miniprogram/invite/accept.ts",
-    "miniprogram/transfer/transfer.ts"
+    "miniprogram/transfer/transfer.ts",
+    "miniprogram/device/settings.ts"
   ]
 }

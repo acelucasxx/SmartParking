@@ -11,6 +11,7 @@ import type { GateAction } from '../../api/types'
 Page({
   data: { vm: null as ReturnType<typeof viewModel>, loadError: '', loading: true },
   controller: undefined as DeviceController | undefined,
+  shown: false,
 
   onLoad(query: Record<string, string | undefined>) {
     const id = Number(query.id)
@@ -23,6 +24,9 @@ Page({
 
   onShow() {
     void this.controller?.start()
+    // 从设备设置返回：名称、车位号可能改了
+    if (this.shown) void this.controller?.refreshDetail()
+    this.shown = true
   },
 
   onHide() {
@@ -70,6 +74,11 @@ Page({
   onTransfer() {
     const id = this.data.vm?.id
     if (id) wx.navigateTo({ url: `/pages/transfer/start?id=${id}` })
+  },
+
+  onSettings() {
+    const id = this.data.vm?.id
+    if (id) wx.navigateTo({ url: `/pages/device/settings?id=${id}` })
   },
 
   onRecords() {

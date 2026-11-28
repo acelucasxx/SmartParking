@@ -179,10 +179,3 @@ export function connection(status: Pick<DeviceStatus, 'statusRefreshedAt'> | nul
 // ------------------------------------------------------------ 名称与车位号
 
 export const NAME_MAX = 32
-
-/** 名称、车位号：去首尾空白，最多 32 个字符（契约）；空表示不设置 */
-export function settingsProblem(name: string, spaceNo: string): string | null {
-  if (name.trim().length > NAME_MAX) return `名称最多 ${NAME_MAX} 个字`
-  if (spaceNo.trim().length > NAME_MAX) return `车位号最多 ${NAME_MAX} 个字`
-  return null
-}

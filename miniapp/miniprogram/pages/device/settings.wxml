@@ -1,0 +1,45 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="placeholder">加载中…</view>
+  <view wx:elif="{{error}}" class="placeholder" bindtap="load">{{error}}，点击重试</view>
+  <block wx:else>
+    <!-- 主人：名称与车位号可改 -->
+    <view wx:if="{{isOwner}}" class="card">
+      <view class="field">
+        <view class="field__label">设备名称</view>
+        <input class="field__input" value="{{name}}" placeholder="如：家里车位" maxlength="{{textMax}}" bindinput="onNameInput" />
+      </view>
+      <view class="field">
+        <view class="field__label">车位号</view>
+        <input class="field__input" value="{{spaceNo}}" placeholder="如：B2-108，可留空" maxlength="{{textMax}}" bindinput="onSpaceInput" />
+      </view>
+      <view wx:if="{{notice}}" class="notice">{{notice}}</view>
+      <button class="btn btn--primary btn--small" loading="{{saving}}" disabled="{{saving}}" bindtap="onSave">保存</button>
+    </view>
+
+    <view class="card">
+      <view wx:if="{{!isOwner}}" class="row"><text class="row__label">名称</text><text>{{name || '—'}}</text></view>
+      <view wx:if="{{!isOwner}}" class="row"><text class="row__label">车位号</text><text>{{spaceNo || '—'}}</text></view>
+      <view wx:if="{{!isOwner}}" class="row"><text class="row__label">主人</text><text>{{ownerNickname || '—'}}</text></view>
+      <view wx:if="{{!isOwner}}" class="row"><text class="row__label">有效期</text><text>{{validity}}</text></view>
+      <view class="row"><text class="row__label">SN</text><text class="mono">{{sn}}</text></view>
+      <view class="row"><text class="row__label">型号</text><text>{{model}}</text></view>
+      <view class="row"><text class="row__label">固件版本</text><text>{{fwVersion}}</text></view>
+      <view wx:if="{{!enabled}}" class="row"><text class="row__label">状态</text><text class="danger">已停用</text></view>
+    </view>
+
+    <button wx:if="{{isOwner}}" class="btn btn--danger-text" bindtap="onUnbind">解绑设备</button>
+    <button wx:else class="btn btn--danger-text" bindtap="onQuit">退出授权</button>
+  </block>
+
+  <confirm-dialog
+    show="{{confirm.show}}"
+    title="{{confirm.title}}"
+    content="{{confirm.content}}"
+    confirm-text="{{confirm.confirmText}}"
+    countdown="{{confirm.countdown}}"
+    danger
+    loading="{{busy}}"
+    bind:confirm="onConfirm"
+    bind:cancel="onConfirmCancel"
+  />
+</view>

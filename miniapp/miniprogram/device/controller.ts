@@ -92,6 +92,16 @@ export class DeviceController {
     this.cancelTimer()
   }
 
+  /** 从设置页等返回时刷新详情（名称、车位号、最近一次操作）；失败不影响轮询 */
+  async refreshDetail(): Promise<void> {
+    if (!this.state.device || this.state.left) return
+    try {
+      await this.reloadDetail()
+    } catch (e) {
+      this.handleError(e)
+    }
+  }
+
   /** 首次加载失败后的重试 */
   retry(): Promise<void> {
     this.update({ loadError: null })

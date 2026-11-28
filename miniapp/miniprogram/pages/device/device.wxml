@@ -66,6 +66,11 @@
       <text class="device__last-more">转给他人，不需要到现场 ›</text>
     </view>
 
+    <view class="device__entry {{vm.isOwner ? 'device__entry--next' : ''}}" bindtap="onSettings">
+      <text>设备设置</text>
+      <text class="device__last-more">{{vm.isOwner ? '名称、车位号、解绑' : '设备信息、退出授权'}} ›</text>
+    </view>
+
     <view class="device__last" bindtap="onRecords">
       <view class="device__last-label">最近一次操作</view>
       <view class="device__last-text">{{vm.lastOperation}}</view>
