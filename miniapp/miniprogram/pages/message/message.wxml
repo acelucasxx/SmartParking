@@ -1,1 +1,27 @@
-<view class="placeholder">消息中心（MP-11）：待实现</view>
+<view class="page">
+  <view wx:if="{{loading}}" class="placeholder">加载中…</view>
+  <view wx:elif="{{error}}" class="placeholder" bindtap="reload">{{error}}，点击重试</view>
+  <view wx:elif="{{!rows.length}}" class="empty">
+    <view class="empty__title">暂无消息</view>
+    <view class="empty__desc">授权、撤销、转让、设备故障等通知会显示在这里。</view>
+  </view>
+  <block wx:else>
+    <view class="bar">
+      <text>{{unread ? unread + ' 条未读' : '全部已读'}}</text>
+      <text wx:if="{{unread}}" class="bar__action" bindtap="onReadAll">全部已读</text>
+    </view>
+    <view wx:for="{{rows}}" wx:key="id" class="msg {{item.unread ? 'msg--unread' : ''}}" data-id="{{item.id}}" bindtap="onTap">
+      <view class="msg__head">
+        <text class="msg__type tone--{{item.tone}}">{{item.label}}</text>
+        <text class="msg__title">{{item.title}}</text>
+        <view wx:if="{{item.unread}}" class="msg__dot"></view>
+      </view>
+      <view class="msg__content">{{item.content}}</view>
+      <view class="msg__foot">
+        <text>{{item.time}}</text>
+        <text wx:if="{{item.deviceId}}" class="msg__link">查看设备 ›</text>
+      </view>
+    </view>
+    <view class="more">{{loadingMore ? '加载中…' : more ? '上拉加载更多' : '没有更多了'}}</view>
+  </block>
+</view>

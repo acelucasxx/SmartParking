@@ -1,0 +1,12 @@
+<view class="page">
+  <view class="list">
+    <view wx:for="{{items}}" wx:key="i" class="item" data-i="{{item.i}}" bindtap="onToggle">
+      <view class="item__q"><text>{{item.q}}</text><text class="item__arrow">{{item.open ? '−' : '+'}}</text></view>
+      <view wx:if="{{item.open}}" class="item__a">{{item.a}}</view>
+    </view>
+  </view>
+  <view class="contact">
+    <view class="contact__text">没有找到答案？</view>
+    <button class="contact__btn" open-type="contact">联系客服</button>
+  </view>
+</view>

@@ -220,6 +220,9 @@ export function createMockServer(now: () => number = Date.now): MockServer {
   const messages: Message[] = [
     message(1, 'GRANT', 2, '你已获得「公司车位」的使用权限', '主人 李女士 授权你使用该车位，有效期 7 天。', false, now() - 3_600_000),
     message(2, 'FAULT', 1, '「家里车位」电机故障', '设备报告电机故障，已通知运维处理。', true, now() - 2 * DAY),
+    message(3, 'REVOKE', 31, '你在「王先生的车位」的使用权限已被撤销', '主人 王先生 撤销了你的使用权限。', false, now() - 26 * 3_600_000),
+    message(4, 'TRANSFER', 41, '你已成为「吴先生的车位」的主人', '吴先生 已将设备转让给你，你现在可以邀请家人、转让或解绑。', true, now() - 3 * DAY),
+    message(5, 'EXPIRE', 35, '你在「周先生的车位」的使用权限已到期', '使用期限已结束，如需继续使用请联系主人重新邀请。', true, now() - 5 * DAY),
   ]
 
   function device(partial: Partial<MockDevice> & Pick<MockDevice, 'id' | 'sn' | 'role'>): MockDevice {
@@ -709,10 +712,17 @@ export function createMockServer(now: () => number = Date.now): MockServer {
         .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
       return page(all, ctx.query)
     })
-    .on('GET', '/messages', (ctx): Page<Message> => page([...messages].sort((a, b) => b.id - a.id), ctx.query))
+    // 最新的在前（时间相同按 ID）
+    .on('GET', '/messages', (ctx): Page<Message> =>
+      page([...messages].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || b.id - a.id), ctx.query),
+    )
     .on('GET', '/messages/unread-count', () => ({ count: messages.filter((m) => !m.read).length }))
     .on('POST', '/messages/read', (ctx) => {
       const ids = Array.isArray(ctx.data.ids) ? (ctx.data.ids as number[]) : null
+      // 与服务端一致：ids 与 all 都没给、ids 为空、超过 100 条或含非正数 10001
+      if (ctx.data.all !== true && (!ids || ids.length === 0 || ids.length > 100 || ids.some((x) => !Number.isInteger(x) || x <= 0))) {
+        throw new MockError(ErrorCode.BAD_REQUEST)
+      }
       for (const m of messages) {
         if (ctx.data.all === true || (ids && ids.includes(m.id))) m.read = true
       }

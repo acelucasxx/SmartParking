@@ -4,6 +4,7 @@ import { requirePhone } from '../../auth/index'
 import { HOME_PAGE } from '../../auth/flow'
 import { bindPageUrl } from '../../bind/flow'
 import { scanSn } from '../../bind/scan'
+import { refreshBadge } from '../../messages/badge'
 import { HomeController, type HomeState } from '../../home/controller'
 import { cardViewModel } from '../../home/view'
 
@@ -27,6 +28,7 @@ Page({
 
   onShow() {
     void this.controller?.start()
+    void refreshBadge()
   },
 
   onHide() {

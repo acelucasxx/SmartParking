@@ -1,8 +1,22 @@
 .mine__card {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
   margin: 24rpx;
   padding: 40rpx;
   border-radius: 24rpx;
   background: #fff;
+}
+.mine__avatar {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: var(--sp-info-bg);
+  color: var(--sp-primary);
+  font-size: 40rpx;
+  font-weight: 600;
+  line-height: 96rpx;
+  text-align: center;
 }
 .mine__name {
   font-size: 36rpx;
@@ -10,10 +24,48 @@
 }
 .mine__phone,
 .mine__bind {
-  margin-top: 12rpx;
+  margin-top: 8rpx;
   color: var(--sp-text-secondary);
   font-size: 26rpx;
 }
 .mine__bind {
   color: var(--sp-primary);
+}
+.menu {
+  margin: 24rpx;
+  border-radius: 24rpx;
+  background: #fff;
+  overflow: hidden;
+}
+.menu__item {
+  display: flex;
+  justify-content: space-between;
+  padding: 32rpx;
+  border-bottom: 2rpx solid var(--sp-muted-bg);
+  font-size: 30rpx;
+}
+.menu__item:last-child {
+  border-bottom: none;
+}
+.menu__item--button {
+  margin: 0;
+  border-radius: 0;
+  background: #fff !important;
+  color: var(--sp-text) !important;
+  font-size: 30rpx;
+  font-weight: 400;
+  line-height: inherit;
+  text-align: left;
+}
+.menu__item--button::after {
+  border: none;
+}
+.menu__arrow {
+  color: var(--sp-muted);
+}
+.version {
+  margin-top: 48rpx;
+  color: var(--sp-muted);
+  font-size: 24rpx;
+  text-align: center;
 }

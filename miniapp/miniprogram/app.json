@@ -15,7 +15,8 @@
     "pages/transfer/start",
     "pages/transfer/accept",
     "pages/device/settings",
-    "pages/device/records"
+    "pages/device/records",
+    "pages/mine/help"
   ],
   "window": {
     "navigationBarTitleText": "智能车位",
