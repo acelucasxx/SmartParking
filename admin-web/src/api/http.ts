@@ -92,13 +92,18 @@ export function upload<T>(url: string, file: File, options?: RequestOptions) {
  * 下载文件：带上登录态请求，成功时按 Content-Disposition 的文件名保存；
  * 出错时服务端返回的是 JSON 信封，按普通接口错误处理（提示、会话失效等）。
  */
-export async function download(url: string, fallbackName: string): Promise<void> {
+export async function download(
+  url: string,
+  fallbackName: string,
+  params?: Record<string, unknown>,
+): Promise<void> {
   const token = hooks?.token()
   let resp
   try {
     resp = await http.request<Blob>({
       method: 'GET',
       url,
+      params,
       responseType: 'blob',
       timeout: 120_000,
       headers: token ? { Authorization: `Bearer ${token}` } : {},

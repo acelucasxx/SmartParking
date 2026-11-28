@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth'
 const PAGES: Record<string, () => Promise<unknown>> = {
   'device-import': () => import('@/views/DeviceImportView.vue'),
   devices: () => import('@/views/DeviceListView.vue'),
+  commands: () => import('@/views/CommandAuditView.vue'),
 }
 
 const router = createRouter({

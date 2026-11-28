@@ -22,6 +22,7 @@
     "src/auth/**/*.ts",
     "src/devices/**/*.ts",
     "src/api/files.ts",
-    "src/utils/**/*.ts"
+    "src/utils/**/*.ts",
+    "src/commands/**/*.ts"
   ]
 }

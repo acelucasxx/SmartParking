@@ -222,6 +222,15 @@ const title = computed(() => {
 
       <!-- 指令 -->
       <el-tab-pane label="指令" name="commands">
+        <div class="bar">
+          <span class="muted">该设备的全部指令，按下发时间倒序</span>
+          <el-button
+            size="small"
+            @click="router.push({ name: 'commands', query: { deviceId: String(device.id) } })"
+          >
+            在指令审计中筛选 / 导出
+          </el-button>
+        </div>
         <el-table
           v-loading="commands.loading.value"
           :data="commands.items.value"
