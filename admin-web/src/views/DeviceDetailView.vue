@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { get } from '@/api/http'
 import { AdminApiError, AdminCode } from '@/auth/errors'
+import DeviceOps from '@/components/DeviceOps.vue'
 import LabelTag from '@/components/LabelTag.vue'
 import { usePaged } from '@/composables/usePaged'
 import {
@@ -33,7 +34,7 @@ import { dayRange, formatDateTime } from '@/utils/format'
 
 /**
  * 设备管理 · 详情（ADM-03）：实时状态、主人、被授权人与有效期、指令、告警、事件流。
- * 运维操作（强制解绑、禁用、换件、自检）在 ADM-06。
+ * 页头的运维操作（强制解绑、重置激活码、禁用 / 启用、换件、自检）见 components/DeviceOps.vue。
  */
 const route = useRoute()
 const router = useRouter()
@@ -98,6 +99,12 @@ watch(
   { immediate: true },
 )
 
+/** 运维操作后：刷新详情，已加载的指令页签也刷新（自检会新增指令） */
+function onOpsChanged() {
+  void loadDevice()
+  if (commands.loaded.value) void commands.load(1)
+}
+
 const title = computed(() => {
   const d = device.value
   if (!d) return ''
@@ -117,6 +124,12 @@ const title = computed(() => {
         </template>
       </template>
     </el-page-header>
+    <DeviceOps
+      v-if="device && !notFound"
+      :device="device"
+      class="ops-bar"
+      @changed="onOpsChanged"
+    />
 
     <el-result
       v-if="notFound"
@@ -403,7 +416,10 @@ const title = computed(() => {
 
 <style scoped>
 .head {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+}
+.ops-bar {
+  margin-bottom: 12px;
 }
 .title {
   margin-right: 8px;
