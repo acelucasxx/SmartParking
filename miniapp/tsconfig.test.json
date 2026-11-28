@@ -25,6 +25,8 @@
     "miniprogram/invite/accept.ts",
     "miniprogram/transfer/transfer.ts",
     "miniprogram/device/settings.ts",
-    "miniprogram/records/records.ts"
+    "miniprogram/records/records.ts",
+    "miniprogram/messages/messages.ts",
+    "miniprogram/content/help.ts"
   ]
 }

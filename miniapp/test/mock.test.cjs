@@ -115,11 +115,21 @@ test('改名走 PATCH 改写，被授权人不能改', async () => {
 test('消息：倒序分页、未读数、按 ID 或全部标记已读', async () => {
   const { client } = setup()
   const page = await client.get('/messages', { page: 1, size: 1 })
-  assert.equal(page.total, 2)
+  assert.equal(page.total, 5)
   assert.equal(page.items.length, 1)
-  assert.equal(page.items[0].id, 2)
-  assert.deepEqual(await client.get('/messages/unread-count'), { count: 1 })
+  assert.equal(page.items[0].id, 1, '最新的在前（按时间，不按 ID）')
+  const all = await client.get('/messages', { page: 1, size: 20 })
+  assert.deepEqual(all.items.map((m) => m.id), [1, 3, 2, 4, 5])
+  assert.deepEqual(await client.get('/messages/unread-count'), { count: 2 })
   assert.equal(await client.post('/messages/read', { ids: [1] }), null)
+  assert.deepEqual(await client.get('/messages/unread-count'), { count: 1 })
+  // ids 与 all 都没给、为空、超过 100 条、含非正数：10001
+  for (const body of [{}, { ids: [] }, { ids: Array.from({ length: 101 }, (_, i) => i + 1) }, { ids: [0] }, { ids: [1.5] }]) {
+    await assert.rejects(client.post('/messages/read', body), (e) => e.code === ErrorCode.BAD_REQUEST, JSON.stringify(body).slice(0, 40))
+  }
+  // 他人的（不存在的）ID 静默忽略
+  assert.equal(await client.post('/messages/read', { ids: [999] }), null)
+  assert.equal(await client.post('/messages/read', { all: true }), null)
   assert.deepEqual(await client.get('/messages/unread-count'), { count: 0 })
 })
 

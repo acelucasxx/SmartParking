@@ -2,10 +2,24 @@
   <view wx:if="{{error}}" class="placeholder" bindtap="load">{{error}}，点击重试</view>
   <block wx:else>
     <view class="mine__card">
-      <view class="mine__name">{{nickname || '微信用户'}}</view>
-      <view wx:if="{{phoneBound}}" class="mine__phone">{{phone}}</view>
-      <view wx:else class="mine__bind" bindtap="onBindPhone">授权手机号 ›</view>
+      <view class="mine__avatar">{{nickname ? nickname[0] : '微'}}</view>
+      <view>
+        <view class="mine__name">{{nickname || '微信用户'}}</view>
+        <view wx:if="{{phoneBound}}" class="mine__phone">{{phone}}</view>
+        <view wx:else class="mine__bind" bindtap="onBindPhone">授权手机号 ›</view>
+      </view>
     </view>
-    <view class="placeholder">个人信息、帮助与客服（MP-11）：待实现</view>
+
+    <view class="menu">
+      <view class="menu__item" bindtap="onHelp"><text>帮助与常见问题</text><text class="menu__arrow">›</text></view>
+      <button class="menu__item menu__item--button" open-type="contact"><text>联系客服</text><text class="menu__arrow">›</text></button>
+    </view>
+
+    <view class="menu">
+      <view class="menu__item" data-type="user" bindtap="onAgreement"><text>用户协议</text><text class="menu__arrow">›</text></view>
+      <view class="menu__item" data-type="privacy" bindtap="onAgreement"><text>隐私政策</text><text class="menu__arrow">›</text></view>
+    </view>
+
+    <view class="version">智能车位 v{{version}}</view>
   </block>
 </view>
