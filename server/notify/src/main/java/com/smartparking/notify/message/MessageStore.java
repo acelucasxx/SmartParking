@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 /** {@code app_message} 读写：写入、列表、未读数、标记已读 */
@@ -20,24 +21,25 @@ public class MessageStore {
     public static final int READ_IDS_MAX = 100;
 
     private final JdbcClient jdbc;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
-    public MessageStore(JdbcClient jdbc, Clock clock) {
+    public MessageStore(JdbcClient jdbc, ApplicationEventPublisher events, Clock clock) {
         this.jdbc = jdbc;
+        this.events = events;
         this.clock = clock;
     }
 
+    /** 写入后发布 {@link MessageCreatedEvent}（微信订阅消息据此推送） */
     public void write(long userId, MessageType type, Long deviceId, String title, String content) {
+        Instant now = clock.instant();
+        String t = cut(title, TITLE_MAX);
+        String c = cut(content, CONTENT_MAX);
         jdbc.sql(
                         "INSERT INTO app_message (user_id, type, device_id, title, content, created_at) VALUES (?, ?, ?, ?, ?, ?)")
-                .params(
-                        userId,
-                        type.name(),
-                        deviceId,
-                        cut(title, TITLE_MAX),
-                        cut(content, CONTENT_MAX),
-                        DbTime.toDb(clock.instant()))
+                .params(userId, type.name(), deviceId, t, c, DbTime.toDb(now))
                 .update();
+        events.publishEvent(new MessageCreatedEvent(userId, type, deviceId, t, c, now));
     }
 
     /** 契约 Message */

@@ -20,8 +20,8 @@ public class NotifyConfiguration {
     }
 
     @Bean
-    MessageStore messageStore(JdbcClient jdbc) {
-        return new MessageStore(jdbc, Clock.systemUTC());
+    MessageStore messageStore(JdbcClient jdbc, ApplicationEventPublisher events) {
+        return new MessageStore(jdbc, events, Clock.systemUTC());
     }
 
     @Bean

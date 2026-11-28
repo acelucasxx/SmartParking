@@ -1,5 +1,8 @@
 package com.smartparking.user.wechat;
 
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 /**
  * 不出网的微信接口，供小程序资质（EXT-10）下来之前的本地联调与自动化测试使用，生产不得启用。
  *
@@ -7,6 +10,7 @@ package com.smartparking.user.wechat;
  *   <li>登录：code 为 {@code test:<名字>} 时 openid 为 {@code mock_<名字>}，便于造多个用户；其余 code（如开发者工具里
  *       {@code wx.login} 的真实 code）一律视为同一个用户 {@code mock_devtools}；code 为 {@code fail} 时模拟微信登录失败。
  *   <li>手机号：code 本身是 1 开头的 11 位数字时返回该号码，{@code fail} 模拟失败，其余返回 {@code 13800138000}。
+ *   <li>订阅消息：不出网，记在 {@link #sent()} 里供测试检查；openid 为 {@code mock_unsubscribed} 时模拟未订阅（43101）。
  * </ul>
  */
 public class MockWeChatClient implements WeChatClient {
@@ -23,6 +27,23 @@ public class MockWeChatClient implements WeChatClient {
             return new WeChatSession("mock_" + code.substring("test:".length()), null);
         }
         return new WeChatSession("mock_devtools", null);
+    }
+
+    static final String UNSUBSCRIBED = "mock_unsubscribed";
+
+    private final List<SubscribeMessage> sent = new CopyOnWriteArrayList<>();
+
+    @Override
+    public void sendSubscribeMessage(SubscribeMessage message) {
+        if (UNSUBSCRIBED.equals(message.openid())) {
+            throw new WeChatException(43101, "mock: user refuse to accept the msg");
+        }
+        sent.add(message);
+    }
+
+    /** 已“发送”的订阅消息，按发送先后 */
+    public List<SubscribeMessage> sent() {
+        return sent;
     }
 
     @Override

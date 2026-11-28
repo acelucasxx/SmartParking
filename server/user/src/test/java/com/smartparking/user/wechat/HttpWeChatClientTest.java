@@ -167,6 +167,66 @@ class HttpWeChatClientTest {
         assertThat(client().phoneNumber("p")).isEqualTo("+85291234567");
     }
 
+    private static WeChatClient.SubscribeMessage subscribe(String page) {
+        var data = new java.util.LinkedHashMap<String, String>();
+        data.put("thing1", "家里车位");
+        data.put("time2", "2026-11-28 10:00");
+        return new WeChatClient.SubscribeMessage("o-1", "TPL-1", page, "trial", data);
+    }
+
+    @Test
+    void subscribeMessageIsSentWithTokenAndNestedValues() throws Exception {
+        responder = c -> c.path().equals("/cgi-bin/stable_token")
+                ? "{\"access_token\":\"AT-1\",\"expires_in\":7200}"
+                : "{\"errcode\":0,\"errmsg\":\"ok\"}";
+        HttpWeChatClient client = client();
+
+        client.sendSubscribeMessage(subscribe("pages/messages/index"));
+        client.sendSubscribeMessage(subscribe(null));
+
+        assertThat(callsTo("/cgi-bin/stable_token")).hasSize(1);
+        List<Call> sends = callsTo("/cgi-bin/message/subscribe/send");
+        assertThat(sends).hasSize(2);
+        assertThat(sends.get(0).method()).isEqualTo("POST");
+        assertThat(sends.get(0).query()).isEqualTo("access_token=AT-1");
+        var body = new ObjectMapper().readTree(sends.get(0).body());
+        assertThat(body.get("touser").asText()).isEqualTo("o-1");
+        assertThat(body.get("template_id").asText()).isEqualTo("TPL-1");
+        assertThat(body.get("page").asText()).isEqualTo("pages/messages/index");
+        assertThat(body.get("miniprogram_state").asText()).isEqualTo("trial");
+        assertThat(body.get("lang").asText()).isEqualTo("zh_CN");
+        assertThat(body.get("data").get("thing1").get("value").asText()).isEqualTo("家里车位");
+        assertThat(body.get("data").get("time2").get("value").asText()).isEqualTo("2026-11-28 10:00");
+        assertThat(new ObjectMapper().readTree(sends.get(1).body()).has("page")).isFalse();
+    }
+
+    @Test
+    void subscribeRefreshesInvalidTokenOnceAndReportsOtherErrors() {
+        responder = c -> {
+            if (c.path().equals("/cgi-bin/stable_token")) {
+                return c.body().contains("\"force_refresh\":true")
+                        ? "{\"access_token\":\"AT-2\",\"expires_in\":7200}"
+                        : "{\"access_token\":\"AT-1\",\"expires_in\":7200}";
+            }
+            return c.query().equals("access_token=AT-1")
+                    ? "{\"errcode\":42001,\"errmsg\":\"access_token expired\"}"
+                    : "{\"errcode\":0}";
+        };
+        HttpWeChatClient client = client();
+        client.sendSubscribeMessage(subscribe(null));
+        assertThat(callsTo("/cgi-bin/message/subscribe/send")).hasSize(2);
+        assertThat(callsTo("/cgi-bin/stable_token")).hasSize(2);
+
+        calls.clear();
+        responder = c -> c.path().equals("/cgi-bin/stable_token")
+                ? "{\"access_token\":\"AT-3\",\"expires_in\":7200}"
+                : "{\"errcode\":43101,\"errmsg\":\"user refuse to accept the msg\"}";
+        assertThatThrownBy(() -> client.sendSubscribeMessage(subscribe(null)))
+                .isInstanceOfSatisfying(
+                        WeChatException.class, e -> assertThat(e.errcode()).isEqualTo(43101));
+        assertThat(callsTo("/cgi-bin/message/subscribe/send")).hasSize(1);
+    }
+
     @Test
     void networkFailureDoesNotLeakSecret() throws IOException {
         int closedPort;
