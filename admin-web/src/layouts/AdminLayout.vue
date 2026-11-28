@@ -53,7 +53,7 @@ async function onCommand(command: string) {
   <el-container class="layout">
     <el-aside width="200px" class="aside">
       <div class="brand">智能车位道闸</div>
-      <el-menu :default-active="route.path" router>
+      <el-menu :default-active="route.meta.activeMenu ?? route.path" router>
         <el-menu-item v-for="m in menu" :key="m.name" :index="m.path">
           {{ m.title }}
         </el-menu-item>

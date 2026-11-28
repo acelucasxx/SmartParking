@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 /** 已实现的菜单页；其余用占位页 */
 const PAGES: Record<string, () => Promise<unknown>> = {
   'device-import': () => import('@/views/DeviceImportView.vue'),
+  devices: () => import('@/views/DeviceListView.vue'),
 }
 
 const router = createRouter({
@@ -27,6 +28,13 @@ const router = createRouter({
           component: PAGES[m.name] ?? (() => import('@/views/PlaceholderView.vue')),
           meta: { title: m.title, task: m.task, permission: m.permission },
         })),
+        {
+          path: 'devices/:id(\\d+)',
+          name: 'device-detail',
+          component: () => import('@/views/DeviceDetailView.vue'),
+          // 不在菜单里，侧边栏高亮“设备管理”
+          meta: { title: '设备详情', permission: 'device:view', activeMenu: '/devices' },
+        },
         {
           path: PASSWORD_PATH.slice(1),
           name: 'password',
