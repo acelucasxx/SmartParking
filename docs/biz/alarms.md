@@ -9,7 +9,7 @@
 | `MOTOR_FAULT` 电机故障 | CRITICAL | `DeviceStateChangedEvent` | 状态码 `E3` |
 | `OBSTRUCTED` 遇阻 | WARNING | 同上 | 原因码 `11` |
 | `INFRARED` 红外防砸 | WARNING | 同上 | 原因码 `12` |
-| `CMD_TIMEOUT` 连续 3 次超时 | WARNING | `CommandFinishedEvent` | 该设备最近 3 条已终结的 App 抬杆 / 落杆都是 `TIMEOUT`（后台自检不计） |
+| `CMD_TIMEOUT` 连续 3 次超时 | WARNING | `CommandFinishedEvent` | 该设备最近 3 条已终结的 App 远程抬杆 / 落杆都是 `TIMEOUT`（后台自检、蓝牙不计） |
 | `OFFLINE_24H` 离线超 24 小时 | CRITICAL | `OnlineStateChangedEvent` | 在线状态变为 `OFFLINE`（PRD 8.5 判据即 `last_seen_at` 超过 24 小时） |
 
 事件定义见 [runtime.md](../iot/runtime.md) 与 [command.md](../iot/command.md)。
