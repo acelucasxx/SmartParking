@@ -1,0 +1,100 @@
+.page {
+  min-height: 100vh;
+  padding: 24rpx 32rpx 64rpx;
+  box-sizing: border-box;
+}
+.quota {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx;
+  border-radius: 24rpx;
+  background: #fff;
+}
+.quota__title {
+  font-size: 34rpx;
+  font-weight: 600;
+}
+.quota__text {
+  margin-top: 8rpx;
+  color: var(--sp-text-secondary);
+  font-size: 26rpx;
+}
+.quota__btn {
+  margin: 0 !important;
+  padding: 0 40rpx;
+  border-radius: 40rpx;
+  background: var(--sp-primary) !important;
+  color: #fff !important;
+  font-size: 28rpx;
+  line-height: 72rpx;
+}
+.quota__btn--disabled {
+  opacity: 0.4;
+}
+.tip {
+  margin-top: 16rpx;
+  padding: 16rpx 24rpx;
+  border-radius: 12rpx;
+  background: var(--sp-warning-bg);
+  color: var(--sp-warning);
+  font-size: 24rpx;
+}
+.section {
+  margin: 40rpx 0 16rpx;
+  color: var(--sp-text-secondary);
+  font-size: 26rpx;
+}
+.empty {
+  padding: 40rpx 32rpx;
+  border-radius: 24rpx;
+  background: #fff;
+  color: var(--sp-muted);
+  font-size: 26rpx;
+  text-align: center;
+}
+.row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+  padding: 28rpx 32rpx;
+  border-radius: 24rpx;
+  background: #fff;
+}
+.row__main {
+  flex: 1;
+  min-width: 0;
+}
+.row__name {
+  font-size: 30rpx;
+  font-weight: 500;
+}
+.row__remark {
+  color: var(--sp-text-secondary);
+  font-weight: 400;
+}
+.row__sub {
+  margin-top: 8rpx;
+  color: var(--sp-text-secondary);
+  font-size: 24rpx;
+}
+.row__actions {
+  display: flex;
+  gap: 32rpx;
+  flex-shrink: 0;
+}
+.link {
+  color: var(--sp-primary);
+  font-size: 28rpx;
+}
+.link--danger {
+  color: var(--sp-danger);
+}
+.badge {
+  margin-left: 12rpx;
+  padding: 2rpx 12rpx;
+  border-radius: 8rpx;
+  background: var(--sp-info-bg);
+  color: var(--sp-info);
+  font-size: 22rpx;
+}

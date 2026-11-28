@@ -57,6 +57,11 @@
       </block>
     </view>
 
+    <view wx:if="{{vm.isOwner}}" class="device__entry" bindtap="onMembers">
+      <text>成员管理</text>
+      <text class="device__last-more">邀请家人、修改有效期 ›</text>
+    </view>
+
     <view class="device__last" bindtap="onRecords">
       <view class="device__last-label">最近一次操作</view>
       <view class="device__last-text">{{vm.lastOperation}}</view>

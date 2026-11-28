@@ -1,0 +1,54 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="placeholder">加载中…</view>
+  <view wx:elif="{{error}}" class="placeholder" bindtap="load">{{error}}，点击重试</view>
+  <block wx:else>
+    <view class="quota">
+      <view>
+        <view class="quota__title">家人共享</view>
+        <view class="quota__text">{{quotaText}}</view>
+      </view>
+      <button class="quota__btn {{full ? 'quota__btn--disabled' : ''}}" bindtap="onInvite">邀请家人</button>
+    </view>
+    <view wx:if="{{full}}" class="tip">{{tip}}</view>
+
+    <view class="section">被授权人</view>
+    <view wx:if="{{!members.length}}" class="empty">还没有家人，点“邀请家人”生成分享卡片发给对方。</view>
+    <view wx:for="{{members}}" wx:key="id" class="row">
+      <view class="row__main">
+        <view class="row__name">
+          {{item.nickname}}<text wx:if="{{item.remark}}" class="row__remark">（{{item.remark}}）</text>
+          <text wx:if="{{item.pending}}" class="badge">未开始</text>
+        </view>
+        <view class="row__sub">{{item.validity}}</view>
+      </view>
+      <view class="row__actions">
+        <text class="link" data-id="{{item.id}}" bindtap="onEdit">修改</text>
+        <text class="link link--danger" data-id="{{item.id}}" data-name="{{item.nickname}}" bindtap="onRevoke">撤销</text>
+      </view>
+    </view>
+
+    <block wx:if="{{invites.length}}">
+      <view class="section">邀请中（未接受前占用名额）</view>
+      <view wx:for="{{invites}}" wx:key="id" class="row">
+        <view class="row__main">
+          <view class="row__name">{{item.remark || '未填备注'}}</view>
+          <view class="row__sub">有效期 {{item.period}} · {{item.expire}}</view>
+        </view>
+        <view class="row__actions">
+          <text class="link link--danger" data-id="{{item.id}}" bindtap="onCancelInvite">撤回</text>
+        </view>
+      </view>
+    </block>
+  </block>
+
+  <confirm-dialog
+    show="{{confirm.show}}"
+    title="{{confirm.title}}"
+    content="{{confirm.content}}"
+    confirm-text="{{confirm.confirmText}}"
+    danger
+    loading="{{busy}}"
+    bind:confirm="onConfirm"
+    bind:cancel="onConfirmCancel"
+  />
+</view>

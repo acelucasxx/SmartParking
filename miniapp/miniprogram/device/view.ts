@@ -4,6 +4,9 @@ import { type Badge, deviceTitle, formatTime, gateBadge, occupancy, onlineBadge,
 
 /** 控制页渲染用的数据：页面只 setData，不做判断 */
 export interface DeviceViewModel {
+  id: number
+  /** 主人才有成员管理入口 */
+  isOwner: boolean
   title: string
   subtitle: string
   roleLabel: string
@@ -39,6 +42,8 @@ export function viewModel(state: ControlState, now: number): DeviceViewModel | n
   if (state.notice) result = { text: state.notice, tone: 'warning' }
   else if (state.phase) result = { text: state.phase.text, tone: state.phase.tone }
   return {
+    id: d.id,
+    isOwner: d.role === 'OWNER',
     title: deviceTitle(d),
     subtitle,
     roleLabel: d.role === 'OWNER' ? '我的' : '家人共享',

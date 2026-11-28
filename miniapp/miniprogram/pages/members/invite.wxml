@@ -1,0 +1,67 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="placeholder">加载中…</view>
+
+  <!-- 已生成卡片：发给家人 -->
+  <view wx:elif="{{card}}" class="done">
+    <view class="done__icon">✓</view>
+    <view class="done__title">邀请卡片已生成</view>
+    <view class="done__desc">{{card.title}}</view>
+    <view class="done__desc">卡片 24 小时内有效，仅可被一人接受；对方接受前占用一个名额。离开本页后无法再次发送，可在成员管理中撤回后重新邀请。</view>
+    <button class="btn btn--primary" open-type="share">发送给家人</button>
+    <button class="btn" bindtap="onDone">完成</button>
+  </view>
+
+  <block wx:else>
+    <view wx:if="{{memberName}}" class="card">
+      <view class="label">成员</view>
+      <view class="value">{{memberName}}</view>
+    </view>
+
+    <view class="card">
+      <view class="label">有效期</view>
+      <view class="choices">
+        <view
+          wx:for="{{options}}"
+          wx:key="value"
+          class="choice {{choice === item.value ? 'choice--on' : ''}}"
+          data-value="{{item.value}}"
+          bindtap="onChoose"
+        >{{item.label}}</view>
+      </view>
+      <view wx:if="{{choice !== 'PERMANENT' && choice !== 'CUSTOM'}}" class="hint">{{memberId ? '从现在起算' : '从对方接受邀请时起算'}}</view>
+
+      <block wx:if="{{choice === 'CUSTOM'}}">
+        <view class="range">
+          <view class="range__label">开始</view>
+          <picker mode="date" value="{{range.fromDate}}" data-field="fromDate" bindchange="onPick">
+            <view class="picker">{{range.fromDate}}</view>
+          </picker>
+          <picker mode="time" value="{{range.fromTime}}" data-field="fromTime" bindchange="onPick">
+            <view class="picker">{{range.fromTime}}</view>
+          </picker>
+        </view>
+        <view class="range">
+          <view class="range__label">结束</view>
+          <picker mode="date" value="{{range.toDate}}" start="{{today}}" data-field="toDate" bindchange="onPick">
+            <view class="picker">{{range.toDate}}</view>
+          </picker>
+          <picker mode="time" value="{{range.toTime}}" data-field="toTime" bindchange="onPick">
+            <view class="picker">{{range.toTime}}</view>
+          </picker>
+        </view>
+        <view class="hint">精确到分钟；开始时间在将来时，到点才生效</view>
+      </block>
+    </view>
+
+    <view class="card">
+      <view class="label">备注（选填）</view>
+      <input class="input" value="{{remark}}" placeholder="如：爸爸" maxlength="{{remarkMax}}" bindinput="onRemark" />
+      <view class="hint">只有你能看到备注</view>
+    </view>
+
+    <view wx:if="{{notice}}" class="notice">{{notice}}</view>
+    <button class="btn btn--primary" loading="{{submitting}}" disabled="{{submitting}}" bindtap="onSubmit">
+      {{memberId ? '保存修改' : '生成邀请卡片'}}
+    </button>
+  </block>
+</view>

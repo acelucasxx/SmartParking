@@ -97,6 +97,19 @@ export function createMockServer(now: () => number = Date.now): MockServer {
   const bindFailures = new Map<string, { count: number; lockedUntil: number }>()
   let nextDeviceId = 101
 
+  // 成员管理（MP-06）：设备 1 有两位成员（永久 / 尚未开始）和一张待接受邀请，名额上限 5
+  interface MockMember { id: number; deviceId: number; nickname: string; remark: string | null; validFrom: number; validTo: number | null; status: 'ACTIVE' | 'REVOKED' | 'EXPIRED' | 'QUIT' }
+  interface MockInvite { id: number; deviceId: number; remark: string | null; period: Record<string, unknown>; expireAt: number; createdAt: number; status: 'PENDING' | 'CANCELLED' }
+  const MEMBER_LIMIT = 5
+  const members: MockMember[] = [
+    { id: 11, deviceId: 1, nickname: '张大爷', remark: '爸爸', validFrom: now() - 3 * DAY, validTo: null, status: 'ACTIVE' },
+    { id: 12, deviceId: 1, nickname: '李阿姨', remark: '保洁', validFrom: now() + DAY, validTo: now() + 8 * DAY, status: 'ACTIVE' },
+  ]
+  const invites: MockInvite[] = [
+    { id: 21, deviceId: 1, remark: '妈妈', period: { type: 'RELATIVE', durationDays: 7 }, expireAt: now() + 20 * 3_600_000, createdAt: now() - 4 * 3_600_000, status: 'PENDING' },
+  ]
+  let nextInviteId = 22
+
   const commands: MockCommand[] = []
   /** 指令 ID → 幂等键：连点只产生一条指令 */
   const idempotency = new Map<number, string>()
@@ -190,6 +203,46 @@ export function createMockServer(now: () => number = Date.now): MockServer {
       resultCode: cmd.resultCode ?? null,
       durationMs: cmd.durationMs ?? null,
     }
+  }
+
+  function ownerDevice(id: string): MockDevice {
+    const d = find(id)
+    if (d.role !== 'OWNER') throw new MockError(ErrorCode.NOT_OWNER, undefined, 403)
+    return d
+  }
+
+  /** 生效中：ACTIVE 且未过 validTo（与服务端口径一致，到期那一刻起不再列出） */
+  const liveMembers = (deviceId: number) => members.filter((m) => m.deviceId === deviceId && m.status === 'ACTIVE' && (m.validTo === null || m.validTo > now()))
+  const liveInvites = (deviceId: number) => invites.filter((i) => i.deviceId === deviceId && i.status === 'PENDING' && i.expireAt > now())
+
+  function memberView(m: MockMember) {
+    return { id: m.id, nickname: m.nickname, remark: m.remark, validFrom: iso(m.validFrom), validTo: m.validTo === null ? null : iso(m.validTo), status: m.status }
+  }
+
+  /** 校验并换算有效期；不合法 30011。RELATIVE 从 start 起算 */
+  function parsePeriod(raw: unknown, start: number): { validFrom: number; validTo: number | null; period: Record<string, unknown> } {
+    const p = (raw ?? {}) as Record<string, unknown>
+    const invalid = () => new MockError(ErrorCode.INVALID_PERIOD, undefined, 400)
+    if (p.type === 'PERMANENT') return { validFrom: start, validTo: null, period: { type: 'PERMANENT' } }
+    if (p.type === 'RELATIVE') {
+      if (![1, 7, 30].includes(p.durationDays as number)) throw invalid()
+      return { validFrom: start, validTo: start + (p.durationDays as number) * DAY, period: { type: 'RELATIVE', durationDays: p.durationDays } }
+    }
+    if (p.type === 'CUSTOM') {
+      const minute = (v: unknown) => Math.floor(Date.parse(String(v)) / 60_000) * 60_000
+      const from = minute(p.validFrom)
+      const to = minute(p.validTo)
+      if (Number.isNaN(from) || Number.isNaN(to) || to <= from || to <= now()) throw invalid()
+      return { validFrom: from, validTo: to, period: { type: 'CUSTOM', validFrom: iso(from), validTo: iso(to) } }
+    }
+    throw invalid()
+  }
+
+  function remarkOf(raw: unknown): string | null {
+    if (raw === undefined || raw === null) return null
+    const r = String(raw).trim()
+    if (r.length > 32) throw new MockError(ErrorCode.BAD_REQUEST, '备注最多 32 个字')
+    return r || null
   }
 
   function settleAll(): void {
@@ -371,6 +424,68 @@ export function createMockServer(now: () => number = Date.now): MockServer {
       devices.push(d)
       bound.set(d.id, { at: now(), connectMs: pending.connectMs })
       return card(d)
+    })
+    .on('GET', '/devices/:id/members', (ctx) => {
+      const d = ownerDevice(ctx.params.id)
+      const m = liveMembers(d.id).sort((a, b) => a.validFrom - b.validFrom)
+      const inv = liveInvites(d.id).sort((a, b) => a.createdAt - b.createdAt)
+      return {
+        limit: MEMBER_LIMIT,
+        used: m.length + inv.length,
+        members: m.map(memberView),
+        invites: inv.map((i) => ({ id: i.id, remark: i.remark, period: i.period, expireAt: iso(i.expireAt), createdAt: iso(i.createdAt) })),
+      }
+    })
+    .on('POST', '/devices/:id/invites', (ctx) => {
+      const d = ownerDevice(ctx.params.id)
+      if (!d.enabled) throw new MockError(ErrorCode.DEVICE_DISABLED, undefined, 403)
+      const { period } = parsePeriod(ctx.data.period, now())
+      const remark = remarkOf(ctx.data.remark)
+      if (liveMembers(d.id).length + liveInvites(d.id).length >= MEMBER_LIMIT) throw new MockError(ErrorCode.MEMBER_LIMIT_REACHED, undefined, 409)
+      const invite: MockInvite = { id: nextInviteId++, deviceId: d.id, remark, period, expireAt: now() + DAY, createdAt: now(), status: 'PENDING' }
+      invites.push(invite)
+      const token = `mockInviteToken${String(invite.id).padStart(28, '0')}`
+      const name = d.name || `车位 ${d.sn}`
+      return { id: invite.id, token, expireAt: iso(invite.expireAt), path: `/pages/invite/accept?token=${token}`, title: `${user.nickname}邀请你使用「${name}」` }
+    })
+    .on('DELETE', '/devices/:id/invites/:inviteId', (ctx) => {
+      const d = ownerDevice(ctx.params.id)
+      const i = invites.find((x) => x.deviceId === d.id && String(x.id) === ctx.params.inviteId)
+      if (!i || (i.status === 'PENDING' && i.expireAt <= now())) throw new MockError(ErrorCode.NOT_FOUND, '邀请不存在', 404)
+      i.status = 'CANCELLED'
+      return null
+    })
+    .on('PATCH', '/devices/:id/members/:memberId', (ctx) => {
+      const d = ownerDevice(ctx.params.id)
+      const m = liveMembers(d.id).find((x) => String(x.id) === ctx.params.memberId)
+      if (!m) throw new MockError(ErrorCode.NOT_FOUND, '授权不存在或已结束', 404)
+      if (!d.enabled) throw new MockError(ErrorCode.DEVICE_DISABLED, undefined, 403)
+      const keys = Object.keys(ctx.data)
+      if (keys.length === 0 || keys.some((k) => k !== 'period' && k !== 'remark')) throw new MockError(ErrorCode.BAD_REQUEST)
+      if ('period' in ctx.data) {
+        const p = parsePeriod(ctx.data.period, now())
+        // PERMANENT：起不变；RELATIVE：尚未开始的改为立即开始；CUSTOM：起止都按新值
+        const type = (ctx.data.period as { type: string }).type
+        if (type === 'PERMANENT') m.validTo = null
+        else if (type === 'RELATIVE') {
+          m.validFrom = Math.min(m.validFrom, now())
+          m.validTo = p.validTo
+        } else {
+          m.validFrom = p.validFrom
+          m.validTo = p.validTo
+        }
+      }
+      if ('remark' in ctx.data) m.remark = remarkOf(ctx.data.remark)
+      return memberView(m)
+    })
+    .on('DELETE', '/devices/:id/members/:memberId', (ctx) => {
+      const d = ownerDevice(ctx.params.id)
+      // 已撤销的再撤销视为成功；已退出、已到期或不属于本设备 10004
+      const m = members.find((x) => x.deviceId === d.id && String(x.id) === ctx.params.memberId)
+      const live = m && liveMembers(d.id).includes(m)
+      if (!m || (!live && m.status !== 'REVOKED')) throw new MockError(ErrorCode.NOT_FOUND, '授权不存在或已结束', 404)
+      m.status = 'REVOKED'
+      return null
     })
     .on('GET', '/devices/:id/records', (ctx): Page<OperationRecord> => {
       settleAll()

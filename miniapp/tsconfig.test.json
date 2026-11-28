@@ -20,6 +20,7 @@
     "miniprogram/home/controller.ts",
     "miniprogram/home/view.ts",
     "miniprogram/bind/flow.ts",
-    "miniprogram/bind/connect.ts"
+    "miniprogram/bind/connect.ts",
+    "miniprogram/members/period.ts"
   ]
 }
