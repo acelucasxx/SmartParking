@@ -122,12 +122,17 @@ export function formatTime(iso: string, now: number = Date.now()): string {
   return `${t.y}-${pad(t.mo)}-${pad(t.d)}`
 }
 
-/** 有效期：永久有效 / 有效期至 12-31 18:00 / 已到期 */
+/** 有效期：永久有效 / 有效期至 12-31 18:00 / 剩余不足 24 小时时为“剩余 X 小时”（PRD 6.2）/ 已到期 */
 export function validity(validTo: string | null | undefined, now: number = Date.now()): string {
   if (!validTo) return '永久有效'
   const ms = Date.parse(validTo)
   if (Number.isNaN(ms)) return validTo
   if (ms <= now) return '已到期'
+  const left = ms - now
+  if (left < DAY) {
+    const hours = Math.floor(left / HOUR)
+    return hours >= 1 ? `剩余 ${hours} 小时` : '剩余不足 1 小时'
+  }
   const t = parts(ms)
   const n = parts(now)
   const date = t.y === n.y ? `${pad(t.mo)}-${pad(t.d)}` : `${t.y}-${pad(t.mo)}-${pad(t.d)}`

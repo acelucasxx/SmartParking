@@ -29,15 +29,16 @@ test('登录后能拿到示例设备，覆盖主人 / 被授权人、在线 / �
     cards.map((c) => [c.role, c.enabled, c.onlineState, c.gateStatus]),
     [
       ['OWNER', true, 'ONLINE', 'CLOSED'],
-      ['MEMBER', true, 'SLEEP', 'OPENED'],
       ['OWNER', true, 'OFFLINE', 'CLOSED'],
-      ['MEMBER', false, 'ONLINE', 'CLOSED'],
       ['OWNER', true, 'ONLINE', 'CLOSED'],
       ['OWNER', true, 'ONLINE', 'CLOSED'],
       ['OWNER', true, 'ONLINE', 'FAULT'],
+      ['MEMBER', true, 'SLEEP', 'OPENED'],
+      ['MEMBER', false, 'ONLINE', 'CLOSED'],
     ],
   )
-  assert.equal(cards[2].batteryPct, null)
+  assert.deepEqual(cards.map((c) => c.id), [1, 3, 5, 6, 7, 2, 4], '主人的在前，被授权的在后')
+  assert.equal(cards[1].batteryPct, null)
   assert.ok(!('model' in cards[0]), '卡片只含卡片字段')
   const detail = await client.get('/devices/1')
   assert.equal(detail.model, 'SPG-100')

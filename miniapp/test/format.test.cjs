@@ -58,6 +58,14 @@ test('有效期：永久 / 到期时刻 / 已到期', () => {
   assert.equal(f.validity('2026-12-31T18:00:00+08:00', now), '有效期至 12-31 18:00')
   assert.equal(f.validity('2027-01-02T08:00:00+08:00', now), '有效期至 2027-01-02 08:00')
   assert.equal(f.validity('2026-11-28T09:00:00+08:00', now), '已到期')
+  // 剩余不足 24 小时显示剩余小时数（向下取整）
+  const at = (ms) => new Date(now + ms).toISOString()
+  assert.equal(f.validity(at(24 * 3_600_000), now), '有效期至 11-29 09:00')
+  assert.equal(f.validity(at(24 * 3_600_000 - 1), now), '剩余 23 小时')
+  assert.equal(f.validity(at(3_600_000), now), '剩余 1 小时')
+  assert.equal(f.validity(at(3_600_000 - 1), now), '剩余不足 1 小时')
+  assert.equal(f.validity(at(1), now), '剩余不足 1 小时')
+  assert.equal(f.validity(at(0), now), '已到期')
   assert.equal(f.validity('oops', now), 'oops')
 })
 
