@@ -24,6 +24,7 @@
     "src/api/files.ts",
     "src/utils/**/*.ts",
     "src/commands/**/*.ts",
-    "src/alarms/**/*.ts"
+    "src/alarms/**/*.ts",
+    "src/users/**/*.ts"
   ]
 }

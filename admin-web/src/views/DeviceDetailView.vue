@@ -48,6 +48,8 @@ const refreshedAt = ref<string | null>(null)
 const tab = ref('overview')
 // 告警列表只开放给超级管理员与运维（契约 x-roles），客服看不到这个页签
 const canAlarms = computed(() => auth.can('alarm:view'))
+// 用户详情只开放给超级管理员与客服（运维看不到用户信息）
+const canUsers = computed(() => auth.can('user:view'))
 
 async function loadDevice() {
   if (!Number.isInteger(id.value) || id.value <= 0) {
@@ -200,7 +202,15 @@ const title = computed(() => {
       <el-tab-pane :label="`主人与授权（${device.members.length}）`" name="members">
         <el-descriptions title="主人" :column="3" border>
           <template v-if="device.owner">
-            <el-descriptions-item label="昵称">{{ device.owner.nickname }}</el-descriptions-item>
+            <el-descriptions-item label="昵称">
+              <router-link
+                v-if="canUsers"
+                :to="{ name: 'user-detail', params: { id: device.owner.userId } }"
+                class="link"
+                >{{ device.owner.nickname }}</router-link
+              >
+              <span v-else>{{ device.owner.nickname }}</span>
+            </el-descriptions-item>
             <el-descriptions-item label="手机号">{{
               device.owner.phoneMasked || '—'
             }}</el-descriptions-item>
@@ -212,7 +222,17 @@ const title = computed(() => {
         </el-descriptions>
         <div class="section-title">被授权人（生效中，含尚未开始的）</div>
         <el-table :data="device.members" empty-text="没有生效中的授权">
-          <el-table-column prop="nickname" label="昵称" min-width="120" />
+          <el-table-column label="昵称" min-width="120">
+            <template #default="{ row }">
+              <router-link
+                v-if="canUsers"
+                :to="{ name: 'user-detail', params: { id: row.userId } }"
+                class="link"
+                >{{ row.nickname }}</router-link
+              >
+              <span v-else>{{ row.nickname }}</span>
+            </template>
+          </el-table-column>
           <el-table-column label="手机号" width="130">
             <template #default="{ row }">{{ row.phoneMasked || '—' }}</template>
           </el-table-column>
@@ -448,6 +468,10 @@ const title = computed(() => {
 }
 code {
   font-family: Menlo, Consolas, monospace;
+}
+.link {
+  color: var(--el-color-primary);
+  text-decoration: none;
 }
 .pager {
   justify-content: flex-end;
