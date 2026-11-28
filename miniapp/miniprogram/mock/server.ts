@@ -181,6 +181,38 @@ export function createMockServer(now: () => number = Date.now): MockServer {
     { token: MOCK_INVITE_TOKENS.ALREADY_MEMBER, deviceId: 2, deviceName: '公司车位', sn: 'SP2612000456', ownerNickname: '李女士', period: { type: 'PERMANENT' }, remark: null, expireAt: now() + 3_600_000, status: 'PENDING' },
   ]
 
+  /**
+   * 设备 1 的非 App 动作（遥控器、地感、延时自动关、遇阻），只有主人能看到（操作记录 MP-10）。
+   * approx 为定时查询发现、时间为发现时间。
+   */
+  const deviceEvents: Array<{ deviceId: number; record: OperationRecord }> = [
+    [8 * 3_600_000, 'REMOTE_CONTROL', 'OPEN', false],
+    // 遥控器抬杆 2 分钟后延时自动落杆
+    [8 * 3_600_000 - 2 * 60_000, 'AUTO_CLOSE', 'CLOSE', false],
+    [DAY + 5 * 3_600_000, 'GROUND_SENSOR', 'OPEN', true],
+    [3 * DAY, 'OBSTRUCTED', 'CLOSE', false],
+    // 设备 2：当前用户是被授权人，看不到这条（只有主人能看到非 App 动作）
+    [2 * 3_600_000, 'REMOTE_CONTROL', 'OPEN', false, 2],
+  ].map(([ago, source, action, approx, deviceId], i) => ({
+    deviceId: (deviceId as number | undefined) ?? 1,
+    record: {
+      id: `e-${900 + i}`,
+      at: iso(now() - (ago as number)),
+      approx: approx as boolean,
+      source: source as OperationRecord['source'],
+      action: action as GateAction,
+      operatorName: null,
+      operatorRole: null,
+      channel: null,
+      result: null,
+      resultCode: null,
+      durationMs: null,
+    },
+  }))
+
+  // 控制页“最近一次操作”取操作记录的第一条（docs/biz/records.md）
+  devices[0].lastOperation = deviceEvents.filter((e) => e.deviceId === 1).sort((x, y) => Date.parse(y.record.at) - Date.parse(x.record.at))[0].record
+
   const commands: MockCommand[] = []
   /** 指令 ID → 幂等键：连点只产生一条指令 */
   const idempotency = new Map<number, string>()
@@ -667,7 +699,14 @@ export function createMockServer(now: () => number = Date.now): MockServer {
     .on('GET', '/devices/:id/records', (ctx): Page<OperationRecord> => {
       settleAll()
       const d = find(ctx.params.id)
-      const all = commands.filter((c) => c.command.deviceId === d.id).reverse().map(record)
+      const date = ctx.query.date
+      if (date !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new MockError(ErrorCode.BAD_REQUEST, 'date 格式应为 yyyy-MM-dd')
+      // App 指令（这里都是本人发起的）+ 主人才能看到的非 App 动作；按时间倒序（mock 里不会有同一时刻的两条）
+      const app = commands.filter((c) => c.command.deviceId === d.id).map(record)
+      const events = d.role === 'OWNER' ? deviceEvents.filter((e) => e.deviceId === d.id).map((e) => e.record) : []
+      const all = [...app, ...events]
+        .filter((r) => !date || toIso(Date.parse(r.at)).slice(0, 10) === date)
+        .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
       return page(all, ctx.query)
     })
     .on('GET', '/messages', (ctx): Page<Message> => page([...messages].sort((a, b) => b.id - a.id), ctx.query))
