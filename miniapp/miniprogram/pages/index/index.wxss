@@ -1,1 +1,14 @@
-/* 车位 */
+.home {
+  padding: 24rpx 32rpx;
+}
+.home__item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+  padding: 32rpx;
+  border-radius: 16rpx;
+  background: #fff;
+}
+.home__badge {
+  color: var(--sp-text-secondary);
+}

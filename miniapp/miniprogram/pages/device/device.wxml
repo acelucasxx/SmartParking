@@ -1,0 +1,66 @@
+<view class="device">
+  <view wx:if="{{loading}}" class="placeholder">加载中…</view>
+  <view wx:elif="{{loadError}}" class="placeholder" bindtap="onRetry">{{loadError}}，点击重试</view>
+  <block wx:elif="{{vm}}">
+    <view wx:if="{{vm.stale}}" class="device__stale">网络异常，状态可能不是最新</view>
+
+    <view class="device__head">
+      <view class="device__title-row">
+        <text class="device__title">{{vm.title}}</text>
+        <text class="device__role">{{vm.roleLabel}}</text>
+        <view class="device__badge device__badge--{{vm.online.tone}}">{{vm.online.label}}</view>
+      </view>
+      <view wx:if="{{vm.subtitle}}" class="device__subtitle">{{vm.subtitle}}</view>
+    </view>
+
+    <!-- 闸杆图示：抬杆中 / 落杆中播放动画 -->
+    <view class="gate" aria-label="闸杆{{vm.gate.label}}">
+      <view class="gate__post"></view>
+      <view class="gate__arm gate__arm--{{vm.gatePose}}"></view>
+      <view class="gate__label device__badge--{{vm.gate.tone}}">{{vm.gate.label}}</view>
+    </view>
+
+    <view class="device__stats">
+      <view class="stat">
+        <view class="stat__label">车位</view>
+        <view class="stat__value">{{vm.occupancy}}</view>
+      </view>
+      <view class="stat">
+        <view class="stat__label">电量</view>
+        <battery-icon class="stat__value" pct="{{vm.batteryPct}}" />
+      </view>
+      <view class="stat">
+        <view class="stat__label">信号</view>
+        <view class="stat__value">{{vm.signal}}</view>
+      </view>
+    </view>
+    <view class="device__refreshed">{{vm.refreshedAt}}</view>
+
+    <view wx:if="{{vm.result}}" class="device__result device__result--{{vm.result.tone}}">{{vm.result.text}}</view>
+
+    <!-- 三态主按钮 -->
+    <view class="device__actions">
+      <block wx:if="{{vm.button.kind === 'control'}}">
+        <button class="action {{vm.openPrimary ? 'action--primary' : ''}}" data-action="OPEN" bindtap="onControl">{{vm.openLabel}}</button>
+        <button class="action {{vm.closePrimary ? 'action--primary' : ''}}" data-action="CLOSE" bindtap="onControl">{{vm.closeLabel}}</button>
+      </block>
+      <button wx:elif="{{vm.button.kind === 'busy'}}" class="action action--primary action--wide" disabled loading>{{vm.button.label}}</button>
+      <block wx:elif="{{vm.button.kind === 'ble'}}">
+        <button class="action action--primary action--wide" bindtap="onBle">蓝牙控制</button>
+        <view class="device__reason">{{vm.button.reason}}</view>
+      </block>
+      <view wx:elif="{{vm.button.kind === 'unavailable'}}" class="device__reason device__reason--block">{{vm.button.reason}}</view>
+      <block wx:else>
+        <button class="action action--wide" disabled>暂不可控制</button>
+        <view class="device__reason">{{vm.button.reason}}</view>
+        <button class="device__support" open-type="contact">联系客服</button>
+      </block>
+    </view>
+
+    <view class="device__last" bindtap="onRecords">
+      <view class="device__last-label">最近一次操作</view>
+      <view class="device__last-text">{{vm.lastOperation}}</view>
+      <view class="device__last-more">操作记录 ›</view>
+    </view>
+  </block>
+</view>

@@ -31,12 +31,6 @@
 .battery__text {
   margin-left: 8rpx;
 }
-.battery--low {
-  color: var(--sp-danger);
-}
-.battery--low .battery__bar--on {
-  background: var(--sp-danger);
-}
 .battery--unknown {
   color: var(--sp-muted);
 }

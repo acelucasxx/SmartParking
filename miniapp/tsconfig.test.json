@@ -13,6 +13,9 @@
     "miniprogram/mock/server.ts",
     "miniprogram/utils/format.ts",
     "miniprogram/auth/flow.ts",
-    "miniprogram/content/agreements.ts"
+    "miniprogram/content/agreements.ts",
+    "miniprogram/device/control.ts",
+    "miniprogram/device/controller.ts",
+    "miniprogram/device/view.ts"
   ]
 }

@@ -1,4 +1,4 @@
-<view class="battery {{low ? 'battery--low' : ''}} {{bars < 0 ? 'battery--unknown' : ''}}" aria-label="电量 {{text}}">
+<view class="battery {{bars < 0 ? 'battery--unknown' : ''}}" aria-label="电量 {{text}}">
   <view class="battery__body">
     <view wx:for="{{slots}}" wx:key="*this" class="battery__bar {{item <= bars ? 'battery__bar--on' : ''}}"></view>
   </view>
