@@ -1,10 +1,25 @@
 page {
+  --sp-primary: #1677ff;
+  --sp-text: #1f2329;
+  --sp-text-secondary: #646a73;
+  --sp-border: #e5e6eb;
+  --sp-success: #00a870;
+  --sp-success-bg: #e8f8f2;
+  --sp-info: #1677ff;
+  --sp-info-bg: #e8f1ff;
+  --sp-warning: #d46b08;
+  --sp-warning-bg: #fff4e5;
+  --sp-danger: #e5484d;
+  --sp-danger-bg: #fdecec;
+  --sp-muted: #8f959e;
+  --sp-muted-bg: #f2f3f5;
+
   background: #f5f6f7;
-  color: #1f2329;
+  color: var(--sp-text);
   font-size: 28rpx;
 }
 .placeholder {
   padding: 120rpx 40rpx;
   text-align: center;
-  color: #8f959e;
+  color: var(--sp-muted);
 }

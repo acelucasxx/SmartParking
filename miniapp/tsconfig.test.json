@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": ".test-build",
+    "rootDir": "miniprogram"
+  },
+  "include": [
+    "miniprogram/api/client.ts",
+    "miniprogram/api/errors.ts",
+    "miniprogram/api/types.ts",
+    "miniprogram/mock/router.ts",
+    "miniprogram/mock/server.ts",
+    "miniprogram/utils/format.ts"
+  ]
+}

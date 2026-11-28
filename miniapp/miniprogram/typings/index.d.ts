@@ -1,3 +1,6 @@
 interface IAppOption {
-  globalData: Record<string, never>
+  globalData: {
+    /** 账号已停用（10010），见 api/index.ts onBanned */
+    banned: boolean
+  }
 }

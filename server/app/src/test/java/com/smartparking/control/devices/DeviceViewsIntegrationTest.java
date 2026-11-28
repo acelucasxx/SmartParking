@@ -3,6 +3,7 @@ package com.smartparking.control.devices;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -342,6 +343,50 @@ class DeviceViewsIntegrationTest {
     }
 
     // ------------------------------------------------------------ 修改
+
+    private ResultActions postAs(long userId, long deviceId, String override, String body) throws Exception {
+        var request = post("/api/app/devices/" + deviceId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token(userId))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body);
+        if (override != null) {
+            request.header("X-HTTP-Method-Override", override);
+        }
+        return mvc.perform(request);
+    }
+
+    /** 小程序 wx.request 不支持 PATCH：POST + X-HTTP-Method-Override: PATCH 按 PATCH 处理，其他取值不改写 */
+    @Test
+    void miniProgramPatchesThroughPostWithOverrideHeader() throws Exception {
+        JsonNode card = data(postAs(owner, device, "patch", "{\"name\":\"小程序改名\"}"));
+        assertThat(card.get("name").asText()).isEqualTo("小程序改名");
+
+        for (String other : new String[] {null, "DELETE", "PUT", "GET"}) {
+            int status = postAs(owner, device, other, "{\"name\":\"不应生效\"}")
+                    .andReturn()
+                    .getResponse()
+                    .getStatus();
+            assertThat(status).as("override=" + other).isGreaterThanOrEqualTo(400);
+        }
+        assertThat(jdbc.sql("SELECT name FROM device WHERE id = ?")
+                        .param(device)
+                        .query(String.class)
+                        .single())
+                .isEqualTo("小程序改名");
+        // 只改写 POST：PUT 带同样的头不按 PATCH 处理
+        int put = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                                "/api/app/devices/" + device)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token(owner))
+                        .header("X-HTTP-Method-Override", "PATCH")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"PUT 不应生效\"}"))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+        assertThat(put).isGreaterThanOrEqualTo(400);
+        // 改写同样经过登录与权限判定
+        expectError(postAs(member, device, "PATCH", "{\"name\":\"被授权人\"}"), ErrorCode.NOT_OWNER);
+    }
 
     @Test
     void ownerUpdatesNameAndSpaceNoIndependently() throws Exception {

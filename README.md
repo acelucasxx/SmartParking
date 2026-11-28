@@ -70,8 +70,8 @@ cd server && ./gradlew :app:bootRun
 cd admin-web && npm install && npm run dev
 ```
 
-**miniapp**：用微信开发者工具导入 `miniapp/` 目录；类型检查：
+**miniapp**：用微信开发者工具导入 `miniapp/` 目录，工程说明与 mock 开关见 [miniapp/README.md](miniapp/README.md)。类型检查与单元测试：
 
 ```bash
-cd miniapp && npm install && npm run typecheck
+cd miniapp && npm install && npm run typecheck && npm test
 ```

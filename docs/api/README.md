@@ -22,6 +22,7 @@
 | 响应信封 | `{"code": 0, "message": "成功", "data": ...}`。`code = 0` 为成功；失败时 `data` 缺省，`message` 可直接展示 |
 | HTTP 状态 | 与错误码对应（见下表）。前端以 `code` 判断业务结果，以 401 统一处理登录失效 |
 | 认证 | `Authorization: Bearer <token>`；小程序与后台的 token 互不通用 |
+| PATCH | 小程序 `wx.request` 不支持 PATCH：用 `POST` 并带 `X-HTTP-Method-Override: PATCH`，服务端按 PATCH 处理（只认这一个取值，仅 `/api/app`） |
 | 时间 | ISO 8601 带偏移，统一东八区，如 `2026-12-31T18:00:00+08:00` |
 | ID | 64 位整数；当前规模不会超出 JS 安全整数范围 |
 | 分页 | 请求 `page`（从 1 开始）、`size`（默认 20，最大 100）；响应 `{total, page, size, items}` |
