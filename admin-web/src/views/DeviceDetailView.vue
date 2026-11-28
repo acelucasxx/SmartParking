@@ -293,6 +293,17 @@ const title = computed(() => {
 
       <!-- 告警：客服无权查看 -->
       <el-tab-pane v-if="canAlarms" label="告警" name="alarms">
+        <div class="bar">
+          <span class="muted">该设备的全部告警（含已处理），按最近发生时间倒序</span>
+          <el-button
+            size="small"
+            @click="
+              router.push({ name: 'alarms', query: { deviceId: String(device.id), status: 'ALL' } })
+            "
+          >
+            在告警中心处理
+          </el-button>
+        </div>
         <el-table v-loading="alarms.loading.value" :data="alarms.items.value" empty-text="没有告警">
           <el-table-column label="类型" width="130">
             <template #default="{ row }">{{ text(ALARM_TYPE, row.type) }}</template>

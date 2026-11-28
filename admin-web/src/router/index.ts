@@ -8,6 +8,7 @@ const PAGES: Record<string, () => Promise<unknown>> = {
   'device-import': () => import('@/views/DeviceImportView.vue'),
   devices: () => import('@/views/DeviceListView.vue'),
   commands: () => import('@/views/CommandAuditView.vue'),
+  alarms: () => import('@/views/AlarmCenterView.vue'),
 }
 
 const router = createRouter({
