@@ -67,6 +67,11 @@ Page({
     if (id) wx.navigateTo({ url: `/pages/members/members?id=${id}` })
   },
 
+  onTransfer() {
+    const id = this.data.vm?.id
+    if (id) wx.navigateTo({ url: `/pages/transfer/start?id=${id}` })
+  },
+
   onRecords() {
     // 操作记录页在 MP-10
     wx.showToast({ title: '操作记录即将上线', icon: 'none' })

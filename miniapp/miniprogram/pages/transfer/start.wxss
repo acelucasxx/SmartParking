@@ -1,0 +1,90 @@
+.page {
+  min-height: 100vh;
+  padding: 32rpx;
+  box-sizing: border-box;
+}
+.card {
+  padding: 32rpx;
+  border-radius: 24rpx;
+  background: #fff;
+}
+.card__title {
+  margin-bottom: 16rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+.risk {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 16rpx;
+  color: var(--sp-text);
+  font-size: 28rpx;
+  line-height: 1.6;
+}
+.risk__dot {
+  color: var(--sp-danger);
+}
+.agree {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin: 32rpx 8rpx 0;
+  font-size: 28rpx;
+}
+.agree__box {
+  width: 36rpx;
+  height: 36rpx;
+  border: 2rpx solid var(--sp-border);
+  border-radius: 8rpx;
+  color: #fff;
+  font-size: 24rpx;
+  line-height: 36rpx;
+  text-align: center;
+}
+.agree__box--on {
+  border-color: var(--sp-primary);
+  background: var(--sp-primary);
+}
+.notice {
+  margin: 16rpx 8rpx 0;
+  color: var(--sp-warning);
+  font-size: 26rpx;
+}
+.btn {
+  margin-top: 32rpx;
+  border-radius: 48rpx;
+  background: #fff !important;
+  color: var(--sp-text) !important;
+}
+.btn--primary {
+  background: var(--sp-primary) !important;
+  color: #fff !important;
+}
+.btn--danger {
+  background: var(--sp-danger) !important;
+  color: #fff !important;
+}
+.state {
+  padding: 80rpx 32rpx 0;
+  text-align: center;
+}
+.state__icon {
+  width: 112rpx;
+  height: 112rpx;
+  margin: 0 auto 24rpx;
+  border-radius: 50%;
+  background: var(--sp-success-bg);
+  color: var(--sp-success);
+  font-size: 56rpx;
+  line-height: 112rpx;
+}
+.state__title {
+  font-size: 36rpx;
+  font-weight: 600;
+}
+.state__desc {
+  margin: 20rpx 0 24rpx;
+  color: var(--sp-text-secondary);
+  font-size: 26rpx;
+  line-height: 1.6;
+}

@@ -22,6 +22,7 @@
     "miniprogram/bind/flow.ts",
     "miniprogram/bind/connect.ts",
     "miniprogram/members/period.ts",
-    "miniprogram/invite/accept.ts"
+    "miniprogram/invite/accept.ts",
+    "miniprogram/transfer/transfer.ts"
   ]
 }

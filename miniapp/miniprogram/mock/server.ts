@@ -38,6 +38,18 @@ export const MOCK_BINDABLE: Record<string, { code: string; connectMs: number | n
 }
 export const MOCK_TAKEN_SN = 'SP2612000777'
 
+/**
+ * 接收转让页（MP-08）各状态的演示 token；开发者工具里用启动参数 `token=…` 打开 pages/transfer/accept。
+ * VALID 接收后多一台自己做主人的设备；MEMBER 是设备 2（当前用户是它的被授权人），接收后改为主人。
+ */
+export const MOCK_TRANSFER_TOKENS = {
+  VALID: 'demoTransferValid_00000000',
+  MEMBER: 'demoTransferMember_0000000',
+  EXPIRED: 'demoTransferExpired_000000',
+  ACCEPTED: 'demoTransferAccepted_00000',
+  CANCELLED: 'demoTransferCancelled_0000',
+} as const
+
 /** 接受邀请页（MP-07）各状态的演示 token；开发者工具里用启动参数 `token=…` 打开 pages/invite/accept */
 export const MOCK_INVITE_TOKENS = {
   VALID: 'demoInviteValid_0000000000',
@@ -136,6 +148,29 @@ export function createMockServer(now: () => number = Date.now): MockServer {
     expireAt: number
     status: 'PENDING' | 'ACCEPTED_BY_OTHER' | 'ACCEPTED_BY_ME' | 'CANCELLED'
   }
+  // 转让（MP-08）：自己发起的按设备记一张；别人发来的见 MOCK_TRANSFER_TOKENS
+  interface OwnTransfer { id: number; deviceId: number; token: string; expireAt: number; createdAt: number; status: 'PENDING' | 'CANCELLED' }
+  interface IncomingTransfer { token: string; deviceId: number; deviceName: string; sn: string; fromNickname: string; expireAt: number; status: 'PENDING' | 'ACCEPTED_BY_OTHER' | 'CANCELLED' }
+  const ownTransfers: OwnTransfer[] = []
+  let nextTransferId = 51
+  const incoming: IncomingTransfer[] = [
+    { token: MOCK_TRANSFER_TOKENS.VALID, deviceId: 41, deviceName: '吴先生的车位', sn: 'SP2612004101', fromNickname: '吴先生', expireAt: now() + 20 * 3_600_000, status: 'PENDING' },
+    { token: MOCK_TRANSFER_TOKENS.MEMBER, deviceId: 2, deviceName: '公司车位', sn: 'SP2612000456', fromNickname: '李女士', expireAt: now() + 20 * 3_600_000, status: 'PENDING' },
+    { token: MOCK_TRANSFER_TOKENS.EXPIRED, deviceId: 42, deviceName: '郑先生的车位', sn: 'SP2612004202', fromNickname: '郑先生', expireAt: now() - 3_600_000, status: 'PENDING' },
+    { token: MOCK_TRANSFER_TOKENS.ACCEPTED, deviceId: 43, deviceName: '冯先生的车位', sn: 'SP2612004303', fromNickname: '冯先生', expireAt: now() + 3_600_000, status: 'ACCEPTED_BY_OTHER' },
+    { token: MOCK_TRANSFER_TOKENS.CANCELLED, deviceId: 44, deviceName: '陈先生的车位', sn: 'SP2612004404', fromNickname: '陈先生', expireAt: now() + 3_600_000, status: 'CANCELLED' },
+  ]
+  const livePending = (deviceId: number) => ownTransfers.find((t) => t.deviceId === deviceId && t.status === 'PENDING' && t.expireAt > now())
+
+  function transferState(t: IncomingTransfer): 'VALID' | 'EXPIRED' | 'ACCEPTED' | 'CANCELLED' | 'OWN_TRANSFER' {
+    // 已是当前主人（含刚接收的），与服务端“看的人已是当前主人”一致
+    if (devices.some((d) => d.id === t.deviceId && d.role === 'OWNER')) return 'OWN_TRANSFER'
+    if (t.status === 'ACCEPTED_BY_OTHER') return 'ACCEPTED'
+    if (t.status === 'CANCELLED') return 'CANCELLED'
+    if (t.expireAt <= now()) return 'EXPIRED'
+    return 'VALID'
+  }
+
   const external: ExternalInvite[] = [
     { token: MOCK_INVITE_TOKENS.VALID, deviceId: 31, deviceName: '王先生的车位', sn: 'SP2612003101', ownerNickname: '王先生', period: { type: 'RELATIVE', durationDays: 7 }, remark: '小张', expireAt: now() + 20 * 3_600_000, status: 'PENDING' },
     { token: MOCK_INVITE_TOKENS.FUTURE, deviceId: 32, deviceName: '赵女士的车位', sn: 'SP2612003202', ownerNickname: '赵女士', period: { type: 'CUSTOM', validFrom: iso(now() + DAY), validTo: iso(now() + 8 * DAY) }, remark: null, expireAt: now() + 20 * 3_600_000, status: 'PENDING' },
@@ -554,6 +589,55 @@ export function createMockServer(now: () => number = Date.now): MockServer {
       const d = device({ id: e.deviceId, sn: e.sn, name: e.deviceName, role: 'MEMBER', validTo: validTo === null ? null : iso(validTo), ownerNickname: e.ownerNickname, batteryPct: 70 })
       // 自定义有效期尚未开始：返回卡片，但车位列表要到开始时刻才显示（这里简化为先不加入列表）
       if (validFrom <= now()) devices.push(d)
+      return card(d)
+    })
+    .on('GET', '/devices/:id/transfer', (ctx) => {
+      const d = ownerDevice(ctx.params.id)
+      const t = livePending(d.id)
+      return t ? { id: t.id, expireAt: iso(t.expireAt), createdAt: iso(t.createdAt) } : null
+    })
+    .on('POST', '/devices/:id/transfer', (ctx) => {
+      const d = ownerDevice(ctx.params.id)
+      if (!d.enabled) throw new MockError(ErrorCode.DEVICE_DISABLED, undefined, 403)
+      if (livePending(d.id)) throw new MockError(ErrorCode.TRANSFER_PENDING_EXISTS, undefined, 409)
+      const id = nextTransferId++
+      const t: OwnTransfer = { id, deviceId: d.id, token: `mockTransferToken${String(id).padStart(26, '0')}`, expireAt: now() + DAY, createdAt: now(), status: 'PENDING' }
+      ownTransfers.push(t)
+      return { id, token: t.token, expireAt: iso(t.expireAt), path: `/pages/transfer/accept?token=${t.token}`, title: `${user.nickname}向你转让「${d.name || `车位 ${d.sn}`}」` }
+    })
+    .on('DELETE', '/devices/:id/transfer', (ctx) => {
+      const d = ownerDevice(ctx.params.id)
+      const t = livePending(d.id)
+      if (!t) throw new MockError(ErrorCode.NOT_FOUND, '没有进行中的转让', 404)
+      t.status = 'CANCELLED'
+      return null
+    })
+    .on('GET', '/transfers/:token', (ctx) => {
+      const own = ownTransfers.find((t) => t.token === ctx.params.token)
+      if (own) {
+        const d = devices.find((x) => x.id === own.deviceId)!
+        const state = own.status === 'CANCELLED' ? 'CANCELLED' : own.expireAt <= now() ? 'EXPIRED' : 'OWN_TRANSFER'
+        return { deviceName: d.name || `车位 ${d.sn}`, sn: d.sn, fromNickname: user.nickname, expireAt: iso(own.expireAt), state }
+      }
+      const t = incoming.find((x) => x.token === ctx.params.token)
+      if (!t) throw new MockError(ErrorCode.NOT_FOUND, '转让不存在', 404)
+      return { deviceName: t.deviceName, sn: t.sn, fromNickname: t.fromNickname, expireAt: iso(t.expireAt), state: transferState(t) }
+    })
+    .on('POST', '/transfers/:token/accept', (ctx) => {
+      if (ownTransfers.some((t) => t.token === ctx.params.token)) throw new MockError(ErrorCode.CANNOT_ACCEPT_OWN, undefined, 409)
+      const t = incoming.find((x) => x.token === ctx.params.token)
+      if (!t) throw new MockError(ErrorCode.NOT_FOUND, '转让不存在', 404)
+      const state = transferState(t)
+      const errors: Record<string, number> = { OWN_TRANSFER: ErrorCode.CANNOT_ACCEPT_OWN, ACCEPTED: ErrorCode.TRANSFER_USED, CANCELLED: ErrorCode.TRANSFER_CANCELLED, EXPIRED: ErrorCode.TRANSFER_EXPIRED }
+      if (state !== 'VALID') throw new MockError(errors[state], undefined, 409)
+      // 原来是被授权人：授权一并结束，改为主人；名称、车位号保留
+      const existing = devices.find((x) => x.id === t.deviceId)
+      if (existing) {
+        Object.assign(existing, { role: 'OWNER', validTo: null, ownerNickname: user.nickname })
+        return card(existing)
+      }
+      const d = device({ id: t.deviceId, sn: t.sn, name: t.deviceName, role: 'OWNER', batteryPct: 55 })
+      devices.push(d)
       return card(d)
     })
     .on('GET', '/devices/:id/records', (ctx): Page<OperationRecord> => {
